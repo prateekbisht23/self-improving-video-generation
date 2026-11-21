@@ -23,5 +23,8 @@ def get_chat_model(role: Role, **overrides) -> BaseChatModel:
         kwargs["base_url"] = s.ollama_base_url
         # qwen3 "thinking" output breaks structured parsing; keep it off for app calls.
         kwargs["reasoning"] = False
+    else:
+        # hosted APIs: fail fast instead of hanging, retry transient 429/503s with backoff
+        kwargs |= {"timeout": 60, "max_retries": 3}
     kwargs.update(overrides)
     return init_chat_model(model, model_provider=provider, **kwargs)

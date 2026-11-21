@@ -2,6 +2,7 @@
 
 from functools import lru_cache
 
+from dotenv import load_dotenv
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -21,4 +22,8 @@ class Settings(BaseSettings):
 
 @lru_cache
 def get_settings() -> Settings:
+    # Also export .env into os.environ: provider SDKs (GOOGLE_API_KEY, ANTHROPIC_API_KEY) and
+    # LangSmith (LANGSMITH_*) read the process environment, not our Settings object.
+    # Real environment variables still win (override=False).
+    load_dotenv(override=False)
     return Settings()

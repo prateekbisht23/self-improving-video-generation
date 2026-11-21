@@ -48,7 +48,7 @@ def _summarize(state: State, mode: str) -> State:
     chain = PROMPT | get_chat_model("planner")  # LCEL: prompt -> model, one Runnable
     msg = chain.invoke({"duration": state["context"].metadata.duration,
                         "mode": mode, "digest": state["digest"]})
-    return {"summary": msg.content}
+    return {"summary": msg.text}  # .text joins content blocks (Gemini 3 returns a list)
 
 
 def summarize_with_speech(state: State) -> State:

@@ -47,3 +47,10 @@ Free-tier caveats:
 - **Rate limits.** There's a per-minute request cap (RPM) and a per-day cap. Describing scenes one at a time is fine, but batch jobs later on need throttling.
 - **Data use.** Google may use free-tier inputs to improve its products. Public sample footage is fine. Use a paid key or local models for private footage.
 - Ollama (`ollama:qwen3:8b`) remains the offline fallback.
+
+## What we learned wiring Gemini (Nov 2026)
+- **Model names go stale.** `gemini-2.5-flash` returned 404 ("no longer available to new users"). List the models your key can use, then pin one exact version. `*-latest` aliases can change under you, which breaks reproducibility (PRD NFR-09).
+- **Free-tier capacity varies.** The full Flash models returned 503/504 at peak times, while `gemini-3.5-flash-lite` answered in about 2 s. The factory sets `timeout=60, max_retries=3` for hosted providers, so a transient 503 is retried instead of failing or hanging.
+- **Content blocks.** Gemini 3 returns `AIMessage.content` as a *list* of blocks (text plus a thought signature). Use `msg.text` to get the joined string. `with_structured_output` handles this for you.
+- **Temperature is ignored** by Gemini 3 ("fixed sampling defaults"). For the judge that means less determinism than temperature 0. Phase 3 will measure evaluator variance with repeated runs (PRD risk: inconsistent LLM evaluations).
+- **Keys must be in the process environment.** `get_settings()` exports `.env` with `load_dotenv`, because SDKs read `os.environ` rather than our Settings object.
