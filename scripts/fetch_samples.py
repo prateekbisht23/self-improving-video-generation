@@ -8,10 +8,10 @@ Originals stay in samples/raw/ untouched (PRD: source media is immutable).
 """
 
 import argparse
+import subprocess
 import sys
 from pathlib import Path
 
-import httpx
 import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -22,22 +22,16 @@ UA = "sivg-sample-fetcher/0.1 (educational video-editing research project)"
 
 
 def download(url: str, dest: Path) -> None:
+    """Fetch with curl (Wikimedia rejects some Python HTTP clients outright).
+
+    argv list, no shell; curl handles retries/backoff for 429 and 5xx.
+    """
     if dest.exists():
         print(f"  cached {dest.name}")
         return
     tmp = dest.with_suffix(dest.suffix + ".part")
-    with httpx.stream("GET", url, headers={"User-Agent": UA}, follow_redirects=True,
-                      timeout=httpx.Timeout(60, read=120)) as r:
-        r.raise_for_status()
-        total = int(r.headers.get("content-length", 0))
-        done = 0
-        with tmp.open("wb") as f:
-            for chunk in r.iter_bytes(1 << 20):
-                f.write(chunk)
-                done += len(chunk)
-                if total:
-                    print(f"\r  {dest.name}: {done / total:5.1%}", end="", flush=True)
-    print()
+    subprocess.run(["curl", "-fL", "--retry", "6", "--retry-delay", "10", "--retry-all-errors",
+                    "-A", UA, "-o", str(tmp), "--progress-bar", url], check=True)
     tmp.rename(dest)
 
 
