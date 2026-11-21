@@ -1,0 +1,24 @@
+# Source footage. Files are git-ignored; run `uv run python scripts/fetch_samples.py`.
+# Every entry is public domain or Creative Commons. Keep attribution when publishing derived edits.
+clips:
+  - id: nasa_interview
+    url: https://upload.wikimedia.org/wikipedia/commons/a/ad/NASA_Interview_Opportunity-_NASA%E2%80%99s_Europa_Clipper_is_Ready_for_Launch_to_Jupiter%E2%80%99s_Moon_Europa_%28SVS14659_-_WesCannedInterviewClipper%29.webm
+    source: https://commons.wikimedia.org/wiki/File:NASA_Interview_Opportunity-_NASA%E2%80%99s_Europa_Clipper_is_Ready_for_Launch_to_Jupiter%E2%80%99s_Moon_Europa_(SVS14659_-_WesCannedInterviewClipper).webm
+    license: Public domain (NASA)
+    attribution: NASA Scientific Visualization Studio / NASA GSFC — interview with Dr. G. Wes Patterson (JHU APL)
+    style: talking head with question slates
+    max_seconds: 120
+  - id: nasa_supermoon
+    url: https://upload.wikimedia.org/wikipedia/commons/b/be/ScienceCasts-_A_Supermoon_Trilogy.webm
+    source: https://commons.wikimedia.org/wiki/File:ScienceCasts-_A_Supermoon_Trilogy.webm
+    license: Public domain (NASA)
+    attribution: NASA / ScienceCasts
+    style: narrated explainer with b-roll
+    max_seconds: 120
+  - id: nasa_lightning
+    url: https://upload.wikimedia.org/wikipedia/commons/2/2a/NASA_ScienceCasts-_Lightning_Across_the_Solar_System.webm
+    source: https://commons.wikimedia.org/wiki/File:NASA_ScienceCasts-_Lightning_Across_the_Solar_System.webm
+    license: CC BY 3.0 (https://creativecommons.org/licenses/by/3.0)
+    attribution: '"NASA ScienceCasts: Lightning Across the Solar System" by ScienceAtNASA, CC BY 3.0, via Wikimedia Commons'
+    style: narrated explainer with b-roll (reference-style candidate)
+    max_seconds: 120

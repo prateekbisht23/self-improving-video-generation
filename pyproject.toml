@@ -1,0 +1,51 @@
+[project]
+name = "sivg"
+version = "0.1.0"
+description = "Self-improving multimodal video editing agent"
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+  "fastapi>=0.115",
+  "uvicorn[standard]>=0.32",
+  "pydantic>=2.9",
+  "pydantic-settings>=2.6",
+  "sqlalchemy>=2.0",
+  "alembic>=1.14",
+  "psycopg[binary]>=3.2",
+  "redis>=5.2",
+  "rq>=2.0",
+  "langchain>=0.3",
+  "langchain-ollama>=0.2",
+  "langgraph>=0.2",
+  "langsmith>=0.2",
+  "scenedetect[opencv]>=0.6.4",
+  "faster-whisper>=1.1",
+  "numpy>=1.26",
+  "pyyaml>=6.0",
+  "httpx>=0.27",
+  "python-dotenv>=1.2.4",
+]
+
+[project.optional-dependencies]
+anthropic = ["langchain-anthropic>=0.3"]
+
+[dependency-groups]
+dev = ["pytest>=8.3", "ruff>=0.8"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["config", "perception", "editing", "agent", "benchmarks", "services"]
+
+[tool.ruff]
+line-length = 110
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["slow: needs models or network"]

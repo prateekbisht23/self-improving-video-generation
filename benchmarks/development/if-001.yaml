@@ -1,0 +1,18 @@
+id: if-001
+category: instruction_following
+split: development
+sources: [samples/nasa_interview.mp4]
+instructions: >
+  Make a 20-25 second vertical clip that opens with the most surprising statement,
+  keeps the speaker on screen, and adds bold captions for every spoken line.
+constraints:
+  min_duration: 20
+  max_duration: 25
+  aspect_ratio: "9:16"
+  captions_required: true
+expected_checks:
+  - technical.duration_in_range
+  - technical.aspect_ratio
+  - captions.present
+  - captions.sync
+  - narrative.strong_opening
