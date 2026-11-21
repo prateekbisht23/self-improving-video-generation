@@ -9,6 +9,26 @@ A multimodal agent that turns raw footage plus natural-language instructions int
 ## Stack
 Python 3.12 · FastAPI · LangChain · LangGraph · LangSmith · FFmpeg · PySceneDetect · faster-whisper · PostgreSQL · Redis + RQ · Next.js · Ollama (local models by default)
 
+## Quickstart
+```bash
+cp .env.example .env            # add LANGSMITH_API_KEY
+docker compose up -d            # Postgres :5433, Redis :6380
+uv sync
+ollama pull qwen3:8b && ollama pull qwen2.5vl:7b && ollama pull nomic-embed-text
+
+uv run python scripts/make_synthetic.py     # deterministic test clips
+uv run python scripts/fetch_samples.py      # licensed sample footage
+uv run pytest
+
+uv run python -m perception.context samples/nasa_interview.mp4 -o out/nasa_interview.json
+uv run python -m agent.graphs.hello_graph out/nasa_interview.json
+
+uv run uvicorn services.api.main:app --port 8010
+cd apps/web && bun dev                      # http://localhost:3000
+```
+
+Sample footage credits: see [`samples/manifest.yaml`](samples/manifest.yaml).
+
 ## Status
 | Phase | Scope | Status |
 |---|---|---|
