@@ -32,3 +32,18 @@ chain.invoke({"digest": ...})
 ## Try this
 1. In a REPL: `from config.models import get_chat_model; get_chat_model("planner").invoke("Name 3 jump-cut techniques").content`
 2. Write a Pydantic model `Hook(text: str, start: float, end: float)` and use `with_structured_output` to pull the best hook out of `out/<clip>.json`'s transcript.
+
+## Switching providers (Gemini free tier)
+`uv sync` installs `langchain-google-genai`. In `.env`:
+```
+GOOGLE_API_KEY=...                        # https://aistudio.google.com/apikey
+MODEL_PLANNER=google_genai:gemini-2.5-flash
+MODEL_VISION=google_genai:gemini-2.5-flash
+MODEL_JUDGE=google_genai:gemini-2.5-flash-lite
+```
+No code changes: `init_chat_model` picks `ChatGoogleGenerativeAI` from the `google_genai` prefix.
+
+Free-tier caveats:
+- **Rate limits.** There's a per-minute request cap (RPM) and a per-day cap. Describing scenes one at a time is fine, but batch jobs later on need throttling.
+- **Data use.** Google may use free-tier inputs to improve its products. Public sample footage is fine. Use a paid key or local models for private footage.
+- Ollama (`ollama:qwen3:8b`) remains the offline fallback.
