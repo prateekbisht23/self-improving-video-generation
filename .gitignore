@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+
+# Media & generated data
+samples/**/*.mp4
+samples/**/*.mov
+samples/**/*.webm
+samples/**/*.wav
+samples/raw/
+data/
+out/
+renders/
+
+# Node / Next.js
+node_modules/
+.next/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
