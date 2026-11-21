@@ -32,7 +32,7 @@ Sample footage credits: see [`samples/manifest.yaml`](samples/manifest.yaml).
 ## Status
 | Phase | Scope | Status |
 |---|---|---|
-| 0 | Foundation & technical spike | in progress |
+| 0 | Foundation & technical spike | done |
 | 1 | Multimodal media intelligence | planned |
 | 2 | Editing agent & FFmpeg renderer | planned |
 | 3 | Independent evaluation engine | planned |
