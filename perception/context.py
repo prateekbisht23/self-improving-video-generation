@@ -24,12 +24,17 @@ def _overlap(a0: float, a1: float, b0: float, b1: float) -> float:
     return max(0.0, min(a1, b1) - max(a0, b0))
 
 
+def speech_in_span(start: float, end: float, segments) -> tuple[list, float]:
+    """Segments overlapping [start, end) and the fraction of the span covered by speech."""
+    hits = [seg for seg in segments if _overlap(start, end, seg.start, seg.end) > 0]
+    spoken = sum(_overlap(start, end, s.start, s.end) for s in hits)
+    return hits, (round(spoken / (end - start), 3) if end > start else 0.0)
+
+
 def attach_transcript(scenes: list[Scene], segments: list[TranscriptSegment]) -> None:
     """Give each scene the transcript segments that overlap it, plus its speech coverage."""
     for sc in scenes:
-        sc.transcript = [seg for seg in segments if _overlap(sc.start, sc.end, seg.start, seg.end) > 0]
-        spoken = sum(_overlap(sc.start, sc.end, s.start, s.end) for s in sc.transcript)
-        sc.speech_ratio = round(spoken / sc.duration, 3) if sc.duration > 0 else 0.0
+        sc.transcript, sc.speech_ratio = speech_in_span(sc.start, sc.end, segments)
 
 
 def build_context(video: str | Path, workdir: str | Path, *, vision: bool = True) -> MediaContext:
@@ -46,7 +51,7 @@ def build_context(video: str | Path, workdir: str | Path, *, vision: bool = True
              meta.fps, meta.has_audio, time.perf_counter() - t)
 
     t = step("scene detection")
-    scenes = detect_scenes(video, duration=meta.duration)
+    scenes = detect_scenes(video, duration=meta.duration, fps=meta.fps)
     log.info("  %d scenes (%.2fs)", len(scenes), time.perf_counter() - t)
 
     audio = AudioFeatures()

@@ -36,3 +36,17 @@ Implementation notes:
 - We pass Whisper a numpy array decoded from our own 16 kHz WAV (`load_wav_16k_mono`), so it never uses PyAV to decode. This avoids a PyAV API mismatch.
 - On macOS you may see `objc: Class AVF... is implemented in both cv2/... and av/...`. OpenCV and PyAV each bundle their own copy of the ffmpeg libraries. The warning is harmless for our usage.
 - Whisper mishears proper nouns ("Paragee" for *perigee*, "Rilogy" for *Trilogy*). Phase 3's caption-accuracy evaluator (WER) will measure this. Passing an `initial_prompt` with domain words is the usual fix.
+
+## Phase 1: choosing a detector with evidence
+On the supermoon intro, a 1-frame-per-second contact sheet shows the real changes at about 5 s, 8 s, 14 s (slow dissolve) and 28 s.
+
+| Detector | Changes found in 0–32 s | Notes |
+|---|---|---|
+| `ContentDetector(27)` (old default) | none | merged everything into one scene |
+| `ContentDetector(18)` | 5.3, 7.3, 8.5, 23.6, 27.9 | 23.6 is a false cut (an animated "31") |
+| `AdaptiveDetector(3.0)` | 5.3, 8.5 | misses 28 s |
+| **`AdaptiveDetector(2.0)`** | **5.3, 8.5, 27.9** | misses only the slow 14 s dissolve |
+
+All four agree exactly on the interview clip, which only has hard cuts. We switched to `AdaptiveDetector(2.0)` with `min_scene_len` derived from the real fps, and record `DETECTOR_VERSION` with every result. Making a contact sheet: `ffmpeg -t 32 -i in.mp4 -vf "fps=1,scale=240:-2,tile=8x4" -frames:v 1 sheet.jpg`.
+
+> This Homebrew ffmpeg build has no `drawtext` / `subtitles` filters (no freetype/libass), which affects caption rendering in Phase 2.

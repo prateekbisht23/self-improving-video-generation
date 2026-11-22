@@ -1,22 +1,27 @@
-"""API entrypoint. Phase 0: health only."""
+"""API entrypoint:  uv run uvicorn services.api.main:app --port 8010"""
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import create_engine, text
+from sqlalchemy import text
 
 from config.settings import get_settings
+from db.session import get_engine
+from services.api.routes import assets, projects, search
 
-app = FastAPI(title="Self-Improving Video Editing Agent", version="0.1.0")
+get_settings()  # export .env for SDKs used in request handlers (embeddings for search)
+
+app = FastAPI(title="Self-Improving Video Editing Agent", version="0.2.0")
 app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:3000"],
                    allow_methods=["*"], allow_headers=["*"])
-
-_engine = create_engine(get_settings().database_url, pool_pre_ping=True)
+app.include_router(projects.router)
+app.include_router(assets.router)
+app.include_router(search.router)
 
 
 @app.get("/health")
 def health() -> dict:
     try:
-        with _engine.connect() as c:
+        with get_engine().connect() as c:
             c.execute(text("select 1"))
         db = "ok"
     except Exception as e:  # report, don't crash the health check

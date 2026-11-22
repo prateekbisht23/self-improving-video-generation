@@ -20,10 +20,19 @@ uv run python scripts/make_synthetic.py     # deterministic test clips
 uv run python scripts/fetch_samples.py      # licensed sample footage
 uv run pytest
 
+uv run alembic upgrade head
+uv run python -m services.worker.worker              # background processing (separate terminal)
+uv run uvicorn services.api.main:app --port 8010     # API docs: http://localhost:8010/docs
+
+# upload footage -> processed in the background
+curl -X POST localhost:8010/projects -H 'content-type: application/json' -d '{"title":"demo"}'
+curl -F file=@samples/nasa_interview.mp4 localhost:8010/projects/<project_id>/assets
+curl localhost:8010/assets/<asset_id>                         # status + per-stage progress
+curl "localhost:8010/projects/<project_id>/search?q=moon"     # hybrid scene search
+
+# standalone (no DB) analysis + first graph
 uv run python -m perception.context samples/nasa_interview.mp4 -o out/nasa_interview.json
 uv run python -m agent.graphs.hello_graph out/nasa_interview.json
-
-uv run uvicorn services.api.main:app --port 8010
 cd apps/web && bun dev                      # http://localhost:3000
 ```
 
@@ -33,7 +42,7 @@ Sample footage credits: see [`samples/manifest.yaml`](samples/manifest.yaml).
 | Phase | Scope | Status |
 |---|---|---|
 | 0 | Foundation & technical spike | done |
-| 1 | Multimodal media intelligence | planned |
+| 1 | Multimodal media intelligence | done |
 | 2 | Editing agent & FFmpeg renderer | planned |
 | 3 | Independent evaluation engine | planned |
 | 4 | Creator memory & predictive editing | planned |
