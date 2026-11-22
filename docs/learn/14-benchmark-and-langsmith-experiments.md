@@ -51,6 +51,21 @@ Weakest checks (dev+val):
 
 Two tasks failed to render (if-05, ac-05). Both ran out of repair budget on duration, and the deterministic fixup can only *shorten*. ac-05 also tripped the agent's own "most clips reuse the same scenes" rule, which is wrong for an interview made of two 50-second shots. These are concrete Phase 5 targets.
 
+## Baseline v0.2 (agent `editing-agent-0.2+d43dbd596cae`, evaluator `eval-1.1`, after Phase 4)
+Phase 4 changed the agent (memory in the prompt, prediction logging) and the evaluator (`instruction.preference_satisfaction` added), so this baseline is **not** directly comparable to v0.1. It's the starting point for Phase 5.
+
+| metric | dev+val (24) | holdout (6) |
+|---|---|---|
+| completion rate | 95.8% | 100% |
+| technical gate passed | 95.8% | 100% |
+| mean check pass rate | 0.810 | 0.855 |
+| actions per task | 8.3 | 6.7 |
+| repairs per task | 2.43 | 1.0 |
+
+The same weaknesses remain: narrative.structure 4%, dialogue_continuity 13%, style.caption_match 0%, style.shot_length_similarity 0%, cut_through_word 52%. `preference_satisfaction` is at 65%. One task failed (pc-05: 17.65 s for a 20–25 s target after 14 repairs), which is again the "fixup can only shorten" problem.
+
+The run hit the free-tier daily quota partway through. It was finished with `--resume` after the quota reset, using the same models; the runner re-graded only the tasks whose judges had failed.
+
 ## Is the evaluator reproducible? Measured, not assumed
 Re-evaluating the same 23 renders (`--reevaluate`) compared 510 check verdicts:
 

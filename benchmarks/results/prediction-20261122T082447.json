@@ -1,0 +1,168 @@
+{
+  "created": "2026-11-22T08:16:13+00:00",
+  "examples": 485,
+  "sessions": 54,
+  "label_counts": {
+    "add_title": 29,
+    "add_transition": 14,
+    "apply_style": 56,
+    "generate_captions": 57,
+    "remove_clip": 34,
+    "reorder_clips": 2,
+    "select_clip": 245,
+    "trim_clip": 48
+  },
+  "majority_baseline_top1": 0.505,
+  "cv_5fold_by_session": {
+    "rules-v1": {
+      "n": 485,
+      "errors": 0,
+      "coverage": 1.0,
+      "top1": 0.608,
+      "top3": 0.909,
+      "valid_rate": 1.0,
+      "top1_by_stage": {
+        "assemble": "0.81 (n=329)",
+        "captions": "0.30 (n=57)",
+        "style": "0.02 (n=56)",
+        "titles": "0.41 (n=29)",
+        "transitions": "0.00 (n=14)"
+      },
+      "top1_by_source": {
+        "fixup": "1.00 (n=8)",
+        "plan": "0.64 (n=342)",
+        "repair": "0.50 (n=135)"
+      }
+    },
+    "markov": {
+      "n": 485,
+      "errors": 0,
+      "coverage": 1.0,
+      "top1": 0.722,
+      "top3": 0.953,
+      "valid_rate": 1.0,
+      "top1_by_stage": {
+        "assemble": "0.79 (n=329)",
+        "captions": "0.95 (n=57)",
+        "style": "0.00 (n=56)",
+        "titles": "0.97 (n=29)",
+        "transitions": "0.64 (n=14)"
+      },
+      "top1_by_source": {
+        "fixup": "0.25 (n=8)",
+        "plan": "0.83 (n=342)",
+        "repair": "0.48 (n=135)"
+      }
+    },
+    "learned": {
+      "n": 485,
+      "errors": 0,
+      "coverage": 1.0,
+      "top1": 0.788,
+      "top3": 0.967,
+      "valid_rate": 1.0,
+      "top1_by_stage": {
+        "assemble": "0.80 (n=329)",
+        "captions": "0.95 (n=57)",
+        "style": "0.64 (n=56)",
+        "titles": "0.86 (n=29)",
+        "transitions": "0.21 (n=14)"
+      },
+      "top1_by_source": {
+        "fixup": "0.62 (n=8)",
+        "plan": "0.87 (n=342)",
+        "repair": "0.59 (n=135)"
+      }
+    }
+  },
+  "validation_split": {
+    "train_examples": 380,
+    "test_examples": 105,
+    "train_sessions": 42,
+    "test_sessions": 12,
+    "rules-v1": {
+      "n": 105,
+      "errors": 0,
+      "coverage": 1.0,
+      "top1": 0.6,
+      "top3": 0.905,
+      "valid_rate": 1.0,
+      "top1_by_stage": {
+        "assemble": "0.78 (n=76)",
+        "captions": "0.17 (n=12)",
+        "style": "0.00 (n=12)",
+        "titles": "0.40 (n=5)"
+      },
+      "top1_by_source": {
+        "fixup": "1.00 (n=2)",
+        "plan": "0.64 (n=69)",
+        "repair": "0.50 (n=34)"
+      },
+      "latency_ms_p50": 0.0,
+      "latency_ms_max": 0.11
+    },
+    "markov-1": {
+      "n": 105,
+      "errors": 0,
+      "coverage": 1.0,
+      "top1": 0.743,
+      "top3": 0.971,
+      "valid_rate": 1.0,
+      "top1_by_stage": {
+        "assemble": "0.80 (n=76)",
+        "captions": "1.00 (n=12)",
+        "style": "0.00 (n=12)",
+        "titles": "1.00 (n=5)"
+      },
+      "top1_by_source": {
+        "fixup": "0.50 (n=2)",
+        "plan": "0.83 (n=69)",
+        "repair": "0.59 (n=34)"
+      },
+      "latency_ms_p50": 0.0,
+      "latency_ms_max": 0.01
+    },
+    "learned-logreg-9cbc4446": {
+      "n": 105,
+      "errors": 0,
+      "coverage": 1.0,
+      "top1": 0.8,
+      "top3": 0.99,
+      "valid_rate": 1.0,
+      "top1_by_stage": {
+        "assemble": "0.80 (n=76)",
+        "captions": "1.00 (n=12)",
+        "style": "0.50 (n=12)",
+        "titles": "1.00 (n=5)"
+      },
+      "top1_by_source": {
+        "fixup": "0.50 (n=2)",
+        "plan": "0.87 (n=69)",
+        "repair": "0.68 (n=34)"
+      },
+      "latency_ms_p50": 0.12,
+      "latency_ms_max": 0.24
+    },
+    "llm:gemini-3.5-flash-lite": {
+      "n": 105,
+      "errors": 0,
+      "coverage": 1.0,
+      "top1": 0.276,
+      "top3": 0.467,
+      "valid_rate": 0.981,
+      "top1_by_stage": {
+        "assemble": "0.24 (n=76)",
+        "captions": "0.83 (n=12)",
+        "style": "0.00 (n=12)",
+        "titles": "0.20 (n=5)"
+      },
+      "top1_by_source": {
+        "fixup": "0.00 (n=2)",
+        "plan": "0.39 (n=69)",
+        "repair": "0.06 (n=34)"
+      },
+      "latency_ms_p50": 4537.53,
+      "latency_ms_max": 15576.08
+    }
+  }
+}

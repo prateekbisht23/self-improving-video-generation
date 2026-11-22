@@ -63,3 +63,23 @@ Invariants added:
 - `evaluation/` never imports the agent (enforced by a test);
 - holdout tasks load only with `allow_holdout=True`;
 - every report records evaluator version, judge model and timeline hash.
+
+## Phase 4 additions
+```
+edit request ─► context_tags(scenes, instructions) ─► memory.retrieval (active + session prefs, conflicts resolved)
+            ─► editing graph (prompt gets preference lines) ─► editing_sessions.memory_used (exact prefs used)
+            └► before every action: rules predictor ─► action_predictions (mode=online)
+
+POST /edits/{id}/feedback ─► memory graph (LangGraph + PostgresSaver)
+            receive ─► extract (planner, structured) ─► update (candidate / reinforce / contradict / session-only)
+            ─(needs confirmation)─► ask: interrupt() ─► API returns questions
+POST /memory/confirmations/{thread} ─► Command(resume=answers) ─► apply_answers ─► finish
+            every change ─► preference_events (audit trail)
+
+agent_actions ─► agent/prediction/evaluate.py (rules, markov, logreg, LLM; GroupKFold by session) ─► action_predictions (offline)
+```
+Invariants added:
+- a single correction never becomes an active preference; activation needs creator confirmation;
+- rejected preferences are never re-proposed; session-scoped feedback never leaves its session;
+- every preference change is an event with its evidence (feedback id, quote);
+- holdout benchmark sessions are never used to train or evaluate predictors.

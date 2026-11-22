@@ -58,6 +58,6 @@ Sample footage credits: see [`samples/manifest.yaml`](samples/manifest.yaml).
 | 1 | Multimodal media intelligence | done |
 | 2 | Editing agent & FFmpeg renderer | done |
 | 3 | Independent evaluation engine | done |
-| 4 | Creator memory & predictive editing | planned |
+| 4 | Creator memory & predictive editing | done |
 | 5 | Failure diagnosis & self-improvement | planned |
 | 6 | Frontend, integration & demo | planned |

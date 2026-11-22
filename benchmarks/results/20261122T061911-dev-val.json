@@ -1,0 +1,2547 @@
+{
+  "run_id": "20261122T061911-dev-val",
+  "agent_version": "editing-agent-0.2+d43dbd596cae",
+  "evaluator_version": "eval-1.1",
+  "dataset_version": "bench-v1-840ca30bb4",
+  "splits": [
+    "development",
+    "validation"
+  ],
+  "judges": true,
+  "models": {
+    "planner": "google_genai:gemini-3.5-flash-lite",
+    "vision": "google_genai:gemini-3.5-flash-lite",
+    "judge": "google_genai:gemini-3.5-flash-lite",
+    "embeddings": "google_genai:gemini-embedding-001"
+  },
+  "started": "2026-11-22T06:19:11+00:00",
+  "results": [
+    {
+      "task": "ac-01",
+      "category": "audio_captions",
+      "split": "development",
+      "session_id": "3b006334-95e5-43a2-b64b-a8df06a851ee",
+      "status": "rendered",
+      "steps": 4,
+      "log": [
+        "plan: 2 clips, ~23.2s",
+        "01 plan   select_clip: ok",
+        "02 plan   select_clip: ok",
+        "03 plan   apply_style: ok",
+        "04 plan   generate_captions: ok",
+        "render v4: 23.24s"
+      ],
+      "rejected": 0,
+      "repairs": 0,
+      "fixups": 0,
+      "trace_id": "3a65e41c-0299-4f38-ba8e-3be226a6971c",
+      "error": null,
+      "render_id": "2b869de2-f971-490b-b8c2-d095f1f35d7b",
+      "evaluation_id": "794d7fd9-935c-4cbd-890a-1556469819ee",
+      "gate": true,
+      "pass_rate": 0.826,
+      "failed": [
+        "instruction.adherence",
+        "instruction.preference_satisfaction",
+        "narrative.structure",
+        "temporal.shot_durations"
+      ],
+      "by_category": {
+        "visual": {
+          "rate": 1.0,
+          "total": 1,
+          "passed": 1
+        },
+        "captions": {
+          "rate": 1.0,
+          "total": 4,
+          "passed": 4
+        },
+        "temporal": {
+          "rate": 0.8,
+          "total": 5,
+          "passed": 4
+        },
+        "narrative": {
+          "rate": 0.0,
+          "total": 1,
+          "passed": 0
+        },
+        "technical": {
+          "rate": 1.0,
+          "total": 10,
+          "passed": 10
+        },
+        "instruction": {
+          "rate": 0.0,
+          "total": 2,
+          "passed": 0
+        }
+      },
+      "checks": {
+        "captions.accuracy": true,
+        "captions.present": true,
+        "captions.speech_coverage": true,
+        "captions.sync": true,
+        "instruction.adherence": false,
+        "instruction.preference_satisfaction": false,
+        "narrative.structure": false,
+        "technical.aspect_ratio": true,
+        "technical.audio_present": true,
+        "technical.av_stream_alignment": true,
+        "technical.black_frames": true,
+        "technical.duration_in_range": true,
+        "technical.file_valid": true,
+        "technical.frozen_frames": true,
+        "technical.loudness": true,
+        "technical.missing_media": true,
+        "technical.resolution": true,
+        "temporal.cut_through_word": true,
+        "temporal.dead_air": true,
+        "temporal.dialogue_continuity": true,
+        "temporal.repeated_footage": true,
+        "temporal.shot_durations": false,
+        "visual.framing": true
+      },
+      "scores": {
+        "captions.accuracy": 1.0,
+        "captions.speech_coverage": 1.0,
+        "instruction.adherence": 0.5,
+        "instruction.preference_satisfaction": 0.667,
+        "narrative.structure": 0.55
+      },
+      "duration": 23.267,
+      "seconds": 30.0
+    },
+    {
+      "task": "ac-02",
+      "category": "audio_captions",
+      "split": "development",
+      "session_id": "bea2bdaf-fce9-41e6-b23d-b418d70a3b7e",
+      "status": "rendered",
+      "steps": 6,
+      "log": [
+        "plan: 4 clips, ~15.3s",
+        "01 plan   select_clip: ok",
+        "02 plan   select_clip: ok",
+        "03 plan   select_clip: ok",
+        "04 plan   select_clip: ok",
+        "05 plan   apply_style: ok",
+        "06 plan   generate_captions: ok",
+        "render v6: 18.00s"
+      ],
+      "rejected": 0,
+      "repairs": 0,
+      "fixups": 0,
+      "trace_id": "2891671e-ac5f-4476-ba4e-03e51e86a046",
+      "error": null,
+      "render_id": "c89f5ccb-1185-4186-ae59-c85dc3b705f9",
+      "evaluation_id": "20a7e449-7442-4d6f-aa27-6793458ed81f",
+      "gate": true,
+      "pass_rate": 0.87,
+      "failed": [
+        "narrative.structure",
+        "temporal.dialogue_continuity",
+        "visual.framing"
+      ],
+      "by_category": {
+        "visual": {
+          "rate": 0.0,
+          "total": 1,
+          "passed": 0
+        },
+        "captions": {
+          "rate": 1.0,
+          "total": 4,
+          "passed": 4
+        },
+        "temporal": {
+          "rate": 0.8,
+          "total": 5,
+          "passed": 4
+        },
+        "narrative": {
+          "rate": 0.0,
+          "total": 1,
+          "passed": 0
+        },
+        "technical": {
+          "rate": 1.0,
+          "total": 10,
+          "passed": 10
+        },
+        "instruction": {
+          "rate": 1.0,
+          "total": 2,
+          "passed": 2
+        }
+      },
+      "checks": {
+        "captions.accuracy": true,
+        "captions.present": true,
+        "captions.speech_coverage": true,
+        "captions.sync": true,
+        "instruction.adherence": true,
+        "instruction.preference_satisfaction": true,
+        "narrative.structure": false,
+        "technical.aspect_ratio": true,
+        "technical.audio_present": true,
+        "technical.av_stream_alignment": true,
+        "technical.black_frames": true,
+        "technical.duration_in_range": true,
+        "technical.file_valid": true,
+        "technical.frozen_frames": true,
+        "technical.loudness": true,
+        "technical.missing_media": true,
+        "technical.resolution": true,
+        "temporal.cut_through_word": true,
+        "temporal.dead_air": true,
+        "temporal.dialogue_continuity": false,
+        "temporal.repeated_footage": true,
+        "temporal.shot_durations": true,
+        "visual.framing": false
+      },
+      "scores": {
+        "captions.accuracy": 0.982,
+        "captions.speech_coverage": 0.981,
+        "instruction.adherence": 1.0,
+        "instruction.preference_satisfaction": 1.0,
+        "narrative.structure": 0.4
+      },
+      "duration": 18.0,
+      "seconds": 27.4
+    },
+    {
+      "task": "ac-03",
+      "category": "audio_captions",
+      "split": "development",
+      "session_id": "eb1939c2-2e0c-40b1-bd1a-5fde01fa3ec9",
+      "status": "rendered",
+      "steps": 6,
+      "log": [
+        "plan: 4 clips, ~21.6s",
+        "01 plan   select_clip: ok",
+        "02 plan   select_clip: ok",
+        "03 plan   select_clip: ok",
+        "04 plan   select_clip: ok",
+        "05 plan   apply_style: ok",
+        "06 plan   generate_captions: ok",
+        "render v6: 22.02s"
+      ],
+      "rejected": 0,
+      "repairs": 0,
+      "fixups": 0,
+      "trace_id": "e5e1ffdd-c303-4f89-9f49-ff16d155a0b3",
+      "error": null,
+      "render_id": "09c2d19c-e437-4a8e-aa0d-6a17cda29f55",
+      "evaluation_id": "25db9f11-e64f-4384-b7fc-51c01638bfe6",
+      "gate": true,
+      "pass_rate": 0.87,
+      "failed": [
+        "technical.black_frames",
+        "temporal.cut_through_word",
+        "temporal.dialogue_continuity"
+      ],
+      "by_category": {
+        "visual": {
+          "rate": 1.0,
+          "total": 1,
+          "passed": 1
+        },
+        "captions": {
+          "rate": 1.0,
+          "total": 4,
+          "passed": 4
+        },
+        "temporal": {
+          "rate": 0.6,
+          "total": 5,
+          "passed": 3
+        },
+        "narrative": {
+          "rate": 1.0,
+          "total": 1,
+          "passed": 1
+        },
+        "technical": {
+          "rate": 0.9,
+          "total": 10,
+          "passed": 9
+        },
+        "instruction": {
+          "rate": 1.0,
+          "total": 2,
+          "passed": 2
+        }
+      },
+      "checks": {
+        "captions.accuracy": true,
+        "captions.present": true,
+        "captions.speech_coverage": true,
+        "captions.sync": true,
+        "instruction.adherence": true,
+        "instruction.preference_satisfaction": true,
+        "narrative.structure": true,
+        "technical.aspect_ratio": true,
+        "technical.audio_present": true,
+        "technical.av_stream_alignment": true,
+        "technical.black_frames": false,
+        "technical.duration_in_range": true,
+        "technical.file_valid": true,
+        "technical.frozen_frames": true,
+        "technical.loudness": true,
+        "technical.missing_media": true,
+        "technical.resolution": true,
+        "temporal.cut_through_word": false,
+        "temporal.dead_air": true,
+        "temporal.dialogue_continuity": false,
+        "temporal.repeated_footage": true,
+        "temporal.shot_durations": true,
+        "visual.framing": true
+      },
+      "scores": {
+        "captions.accuracy": 0.915,
+        "captions.speech_coverage": 0.999,
+        "instruction.adherence": 1.0,
+        "instruction.preference_satisfaction": 1.0,
+        "narrative.structure": 0.95
+      },
+      "duration": 22.033,
+      "seconds": 26.7
+    },
+    {
+      "task": "if-01",
+      "category": "instruction_following",
+      "split": "development",
+      "session_id": "c00bc9e5-b743-41d4-9fb6-0d9548c3821b",
+      "status": "rendered",
+      "steps": 7,
+      "log": [
+        "plan: 3 clips, ~21.1s",
+        "01 plan   select_clip: ok",
+        "02 plan   select_clip: ok",
+        "03 plan   select_clip: ok",
+        "04 plan   apply_style: ok",
+        "05 plan   generate_captions: ok",
+        "06 plan   add_title: ok",
+        "repair #1: duration 16.64s outside target 20-25s -> ['select_clip']",
+        "07 repair select_clip: ok",
+        "render v7: 22.68s"
+      ],
+      "rejected": 0,
+      "repairs": 1,
+      "fixups": 0,
+      "trace_id": "a1b5ff1a-8ca0-4bd5-af07-a1c448176199",
+      "error": null,
+      "render_id": "88d4645b-8d8f-49f8-9303-3ca84020baa6",
+      "evaluation_id": "9274a6e1-0707-47ea-affc-84c009575117",
+      "gate": true,
+      "pass_rate": 0.833,
+      "failed": [
+        "instruction.adherence",
+        "narrative.structure",
+        "temporal.dialogue_continuity",
+        "temporal.shot_durations"
+      ],
+      "by_category": {
+        "visual": {
+          "rate": 1.0,
+          "total": 1,
+          "passed": 1
+        },
+        "captions": {
+          "rate": 1.0,
+          "total": 4,
+          "passed": 4
+        },
+        "temporal": {
+          "rate": 0.6,
+          "total": 5,
+          "passed": 3
+        },
+        "narrative": {
+          "rate": 0.0,
+          "total": 1,
+          "passed": 0
+        },
+        "technical": {
+          "rate": 1.0,
+          "total": 10,
+          "passed": 10
+        },
+        "instruction": {
+          "rate": 0.667,
+          "total": 3,
+          "passed": 2
+        }
+      },
+      "checks": {
+        "captions.accuracy": true,
+        "captions.present": true,
+        "captions.speech_coverage": true,
+        "captions.sync": true,
+        "instruction.adherence": false,
+        "instruction.must_include": true,
+        "instruction.preference_satisfaction": true,
+        "narrative.structure": false,
+        "technical.aspect_ratio": true,
+        "technical.audio_present": true,
+        "technical.av_stream_alignment": true,
+        "technical.black_frames": true,
+        "technical.duration_in_range": true,
+        "technical.file_valid": true,
+        "technical.frozen_frames": true,
+        "technical.loudness": true,
+        "technical.missing_media": true,
+        "technical.resolution": true,
+        "temporal.cut_through_word": true,
+        "temporal.dead_air": true,
+        "temporal.dialogue_continuity": false,
+        "temporal.repeated_footage": true,
+        "temporal.shot_durations": false,
+        "visual.framing": true
+      },
+      "scores": {
+        "captions.accuracy": 1.0,
+        "captions.speech_coverage": 1.0,
+        "instruction.adherence": 0.75,
+        "instruction.preference_satisfaction": 1.0,
+        "narrative.structure": 0.75
+      },
+      "duration": 22.7,
+      "seconds": 29.1
+    },
+    {
+      "task": "if-02",
+      "category": "instruction_following",
+      "split": "development",
+      "session_id": "b5d05ea0-8326-4995-ad68-ebc43674c9c8",
+      "status": "rendered",
+      "steps": 15,
+      "log": [
+        "plan: 3 clips, ~18.5s",
+        "01 plan   select_clip: ok",
+        "02 plan   select_clip: ok",
+        "03 plan   select_clip: ok",
+        "04 plan   apply_style: ok",
+        "05 plan   generate_captions: ok",
+        "repair #1: duration 33.70s outside target 15-20s; most clips reuse the same scenes; vary the footage -> ['select_clip']",
+        "06 repair select_clip: ok",
+        "repair #2: duration 41.10s outside target 15-20s -> ['remove_clip']",
+        "07 repair remove_clip: ok",
+        "repair #3: duration 33.70s outside target 15-20s; most clips reuse the same scenes; vary the footage -> ['select_clip', 'select_clip', 'remove_clip', 'remove_clip', 'remove_clip', 'trim_clip', 'trim_clip', 'generate_captions']",
+        "08 repair select_clip: ok",
+        "09 repair select_clip: ok",
+        "10 repair remove_clip: ok",
+        "11 repair remove_clip: ok",
+        "12 repair remove_clip: ok",
+        "13 repair trim_clip: ok",
+        "14 repair trim_clip: ok",
+        "15 repair generate_captions: ok",
+        "render v15: 19.90s"
+      ],
+      "rejected": 0,
+      "repairs": 10,
+      "fixups": 0,
+      "trace_id": "8a4c3a24-257c-426c-bb53-46f862d5e0d3",
+      "error": null,
+      "render_id": "607c16c7-0f14-4049-8e74-256092af41f0",
+      "evaluation_id": "e01b38db-c50c-4859-a73b-282330c9afc5",
+      "gate": true,
+      "pass_rate": 0.875,
+      "failed": [
+        "narrative.structure",
+        "temporal.dialogue_continuity",
+        "temporal.shot_durations"
+      ],
+      "by_category": {
+        "visual": {
+          "rate": 1.0,
+          "total": 1,
+          "passed": 1
+        },
+        "captions": {
+          "rate": 1.0,
+          "total": 3,
+          "passed": 3
+        },
+        "temporal": {
+          "rate": 0.6,
+          "total": 5,
+          "passed": 3
+        },
+        "narrative": {
+          "rate": 0.0,
+          "total": 1,
+          "passed": 0
+        },
+        "technical": {
+          "rate": 1.0,
+          "total": 10,
+          "passed": 10
+        },
+        "instruction": {
+          "rate": 1.0,
+          "total": 4,
+          "passed": 4
+        }
+      },
+      "checks": {
+        "captions.accuracy": true,
+        "captions.present": null,
+        "captions.speech_coverage": true,
+        "captions.sync": true,
+        "instruction.adherence": true,
+        "instruction.must_exclude": true,
+        "instruction.must_include": true,
+        "instruction.preference_satisfaction": true,
+        "narrative.structure": false,
+        "technical.aspect_ratio": true,
+        "technical.audio_present": true,
+        "technical.av_stream_alignment": true,
+        "technical.black_frames": true,
+        "technical.duration_in_range": true,
+        "technical.file_valid": true,
+        "technical.frozen_frames": true,
+        "technical.loudness": true,
+        "technical.missing_media": true,
+        "technical.resolution": true,
+        "temporal.cut_through_word": true,
+        "temporal.dead_air": true,
+        "temporal.dialogue_continuity": false,
+        "temporal.repeated_footage": true,
+        "temporal.shot_durations": false,
+        "visual.framing": true
+      },
+      "scores": {
+        "captions.accuracy": 0.983,
+        "captions.speech_coverage": 1.0,
+        "instruction.adherence": 1.0,
+        "instruction.preference_satisfaction": 1.0,
+        "narrative.structure": 0.35
+      },
+      "duration": 19.9,
+      "seconds": 37.7
+    },
+    {
+      "task": "if-03",
+      "category": "instruction_following",
+      "split": "development",
+      "session_id": "7e0e7736-b0cd-47ca-a2eb-c94aa3fdbb0b",
+      "status": "rendered",
+      "steps": 8,
+      "log": [
+        "plan: 4 clips, ~19.9s",
+        "01 plan   select_clip: ok",
+        "02 plan   select_clip: ok",
+        "03 plan   select_clip: ok",
+        "04 plan   select_clip: ok",
+        "05 plan   apply_style: ok",
+        "06 plan   generate_captions: ok",
+        "repair #1: duration 26.42s outside target 15-22s -> ['trim_clip']",
+        "07 repair trim_clip: ok",
+        "repair #2: duration 24.02s outside target 15-22s -> ['trim_clip']",
+        "08 repair trim_clip: ok",
+        "render v8: 19.16s"
+      ],
+      "rejected": 0,
+      "repairs": 2,
+      "fixups": 0,
+      "trace_id": "9281c597-6efd-40a8-867d-51e82a46b245",
+      "error": null,
+      "render_id": "f06cc87f-be25-4e31-9ffe-0e2268fc40fc",
+      "evaluation_id": "704ff56e-c8d5-4b79-a339-415cb4362964",
+      "gate": true,
+      "pass_rate": 0.833,
+      "failed": [
+        "narrative.structure",
+        "temporal.dialogue_continuity",
+        "temporal.shot_durations",
+        "visual.framing"
+      ],
+      "by_category": {
+        "visual": {
+          "rate": 0.0,
+          "total": 1,
+          "passed": 0
+        },
+        "captions": {
+          "rate": 1.0,
+          "total": 4,
+          "passed": 4
+        },
+        "temporal": {
+          "rate": 0.6,
+          "total": 5,
+          "passed": 3
+        },
+        "narrative": {
+          "rate": 0.0,
+          "total": 1,
+          "passed": 0
+        },
+        "technical": {
+          "rate": 1.0,
+          "total": 10,
+          "passed": 10
+        },
+        "instruction": {
+          "rate": 1.0,
+          "total": 3,
+          "passed": 3
+        }
+      },
+      "checks": {
+        "captions.accuracy": true,
+        "captions.present": true,
+        "captions.speech_coverage": true,
+        "captions.sync": true,
+        "instruction.adherence": true,
+        "instruction.must_include": true,
+        "instruction.preference_satisfaction": true,
+        "narrative.structure": false,
+        "technical.aspect_ratio": true,
+        "technical.audio_present": true,
+        "technical.av_stream_alignment": true,
+        "technical.black_frames": true,
+        "technical.duration_in_range": true,
+        "technical.file_valid": true,
+        "technical.frozen_frames": true,
+        "technical.loudness": true,
+        "technical.missing_media": true,
+        "technical.resolution": true,
+        "temporal.cut_through_word": true,
+        "temporal.dead_air": true,
+        "temporal.dialogue_continuity": false,
+        "temporal.repeated_footage": true,
+        "temporal.shot_durations": false,
+        "visual.framing": false
+      },
+      "scores": {
+        "captions.accuracy": 0.942,
+        "captions.speech_coverage": 1.0,
+        "instruction.adherence": 1.0,
+        "instruction.preference_satisfaction": 1.0,
+        "narrative.structure": 0.4
+      },
+      "duration": 19.167,
+      "seconds": 35.2
+    },
+    {
+      "task": "if-04",
+      "category": "instruction_following",
+      "split": "development",
+      "session_id": "a5b30e9e-8e1a-439f-9407-c77e7af98295",
+      "status": "rendered",
+      "steps": 7,
+      "log": [
+        "plan: 4 clips, ~22.9s",
+        "01 plan   select_clip: ok",
+        "02 plan   select_clip: ok",
+        "03 plan   select_clip: ok",
+        "04 plan   select_clip: ok",
+        "05 plan   apply_style: ok",
+        "06 plan   generate_captions: ok",
+        "repair #1: duration 18.32s outside target 20-30s -> ['select_clip']",
+        "07 repair select_clip: ok",
+        "render v7: 20.15s"
+      ],
+      "rejected": 0,
+      "repairs": 1,
+      "fixups": 0,
+      "trace_id": "7a273f57-226c-4a55-8cb0-492160bcb7fe",
+      "error": null,
+      "render_id": "d4e04d05-7910-4a38-b337-6f2a01d11882",
+      "evaluation_id": "22a0cabc-fc3b-422c-90bb-18060a497f71",
+      "gate": true,
+      "pass_rate": 0.783,
+      "failed": [
+        "instruction.adherence",
+        "narrative.structure",
+        "technical.black_frames",
+        "temporal.cut_through_word",
+        "temporal.dialogue_continuity"
+      ],
+      "by_category": {
+        "visual": {
+          "rate": 1.0,
+          "total": 1,
+          "passed": 1
+        },
+        "captions": {
+          "rate": 1.0,
+          "total": 3,
+          "passed": 3
+        },
+        "temporal": {
+          "rate": 0.6,
+          "total": 5,
+          "passed": 3
+        },
+        "narrative": {
+          "rate": 0.0,
+          "total": 1,
+          "passed": 0
+        },
+        "technical": {
+          "rate": 0.9,
+          "total": 10,
+          "passed": 9
+        },
+        "instruction": {
+          "rate": 0.667,
+          "total": 3,
+          "passed": 2
+        }
+      },
+      "checks": {
+        "captions.accuracy": true,
+        "captions.present": null,
+        "captions.speech_coverage": true,
+        "captions.sync": true,
+        "instruction.adherence": false,
+        "instruction.must_include": true,
+        "instruction.preference_satisfaction": true,
+        "narrative.structure": false,
+        "technical.aspect_ratio": true,
+        "technical.audio_present": true,
+        "technical.av_stream_alignment": true,
+        "technical.black_frames": false,
+        "technical.duration_in_range": true,
+        "technical.file_valid": true,
+        "technical.frozen_frames": true,
+        "technical.loudness": true,
+        "technical.missing_media": true,
+        "technical.resolution": true,
+        "temporal.cut_through_word": false,
+        "temporal.dead_air": true,
+        "temporal.dialogue_continuity": false,
+        "temporal.repeated_footage": true,
+        "temporal.shot_durations": true,
+        "visual.framing": true
+      },
+      "scores": {
+        "captions.accuracy": 0.934,
+        "captions.speech_coverage": 0.981,
+        "instruction.adherence": 0.667,
+        "instruction.preference_satisfaction": 1.0,
+        "narrative.structure": 0.5
+      },
+      "duration": 20.167,
+      "seconds": 33.3
+    },
+    {
+      "task": "if-05",
+      "category": "instruction_following",
+      "split": "development",
+      "session_id": "e4a7eb98-4029-4b36-91d0-cc58aefc417d",
+      "status": "rendered",
+      "steps": 23,
+      "log": [
+        "plan: 3 clips, ~27.0s",
+        "01 plan   select_clip: ok",
+        "02 plan   select_clip: ok",
+        "03 plan   select_clip: ok",
+        "04 plan   apply_style: ok",
+        "05 plan   generate_captions: ok",
+        "repair #1: duration 35.82s outside target 25-30s -> ['trim_clip', 'trim_clip', 'remove_clip']",
+        "06 repair trim_clip: ok",
+        "07 repair trim_clip: ok",
+        "08 repair remove_clip: ok",
+        "repair #2: duration 12.90s outside target 25-30s -> ['select_clip', 'select_clip', 'select_clip']",
+        "09 repair select_clip: ok",
+        "10 repair select_clip: ok",
+        "11 repair select_clip: ok",
+        "repair #3: duration 68.77s outside target 25-30s -> ['select_clip', 'select_clip', 'remove_clip', 'remove_clip', 'remove_clip', 'remove_clip', 'remove_clip', 'generate_captions', 'apply_style', 'add_title']",
+        "12 repair select_clip: ok",
+        "13 repair select_clip: ok",
+        "14 repair remove_clip: ok",
+        "15 repair remove_clip: ok",
+        "16 repair remove_clip: ok",
+        "17 repair remove_clip: ok",
+        "18 repair remove_clip: ok",
+        "19 repair generate_captions: ok",
+        "20 repair apply_style: ok",
+        "21 repair add_title: ok",
+        "repair #4: duration 16.98s outside target 25-30s -> ['select_clip']",
+        "22 repair select_clip: ok",
+        "fixup: 1 deterministic trims",
+        "23 fixup  trim_clip: ok",
+        "render v23: 30.00s"
+      ],
+      "rejected": 0,
+      "repairs": 17,
+      "fixups": 1,
+      "trace_id": "219e1242-049d-4b3e-ae21-ebf242abfd4e",
+      "error": null,
+      "render_id": "ed7a89aa-8d33-4ce1-950d-6a0ebf63caa1",
+      "evaluation_id": "5485fcce-83a7-43ea-9ad7-ac9d441a5b6d",
+      "gate": true,
+      "pass_rate": 0.75,
+      "failed": [
+        "instruction.adherence",
+        "instruction.preference_satisfaction",
+        "narrative.structure",
+        "temporal.dialogue_continuity",
+        "temporal.repeated_footage",
+        "temporal.shot_durations"
+      ],
+      "by_category": {
+        "visual": {
+          "rate": 1.0,
+          "total": 1,
+          "passed": 1
+        },
+        "captions": {
+          "rate": 1.0,
+          "total": 4,
+          "passed": 4
+        },
+        "temporal": {
+          "rate": 0.4,
+          "total": 5,
+          "passed": 2
+        },
+        "narrative": {
+          "rate": 0.0,
+          "total": 1,
+          "passed": 0
+        },
+        "technical": {
+          "rate": 1.0,
+          "total": 10,
+          "passed": 10
+        },
+        "instruction": {
+          "rate": 0.333,
+          "total": 3,
+          "passed": 1
+        }
+      },
+      "checks": {
+        "captions.accuracy": true,
+        "captions.present": true,
+        "captions.speech_coverage": true,
+        "captions.sync": true,
+        "instruction.adherence": false,
+        "instruction.must_include": true,
+        "instruction.preference_satisfaction": false,
+        "narrative.structure": false,
+        "technical.aspect_ratio": true,
+        "technical.audio_present": true,
+        "technical.av_stream_alignment": true,
+        "technical.black_frames": true,
+        "technical.duration_in_range": true,
+        "technical.file_valid": true,
+        "technical.frozen_frames": true,
+        "technical.loudness": true,
+        "technical.missing_media": true,
+        "technical.resolution": true,
+        "temporal.cut_through_word": true,
+        "temporal.dead_air": true,
+        "temporal.dialogue_continuity": false,
+        "temporal.repeated_footage": false,
+        "temporal.shot_durations": false,
+        "visual.framing": true
+      },
+      "scores": {
+        "captions.accuracy": 0.939,
+        "captions.speech_coverage": 0.976,
+        "instruction.adherence": 0.667,
+        "instruction.preference_satisfaction": 0.333,
+        "narrative.structure": 0.25
+      },
+      "duration": 30.0,
+      "seconds": 45.1
+    },
+    {
+      "task": "pc-01",
+      "category": "pacing_scene_selection",
+      "split": "development",
+      "session_id": "ecc5866a-e4c5-401d-b227-c87794e95cee",
+      "status": "rendered",
+      "steps": 5,
+      "log": [
+        "plan: 3 clips, ~17.6s",
+        "01 plan   select_clip: ok",
+        "02 plan   select_clip: ok",
+        "03 plan   select_clip: ok",
+        "04 plan   apply_style: ok",
+        "05 plan   generate_captions: ok",
+        "render v5: 18.22s"
+      ],
+      "rejected": 0,
+      "repairs": 0,
+      "fixups": 0,
+      "trace_id": "7ced7860-e173-4093-929e-b4704c8fd0b0",
+      "error": null,
+      "render_id": "e5b046d8-43e9-4c2c-9919-565313d84b05",
+      "evaluation_id": "175de20d-2790-4279-8e25-c17b7e9fa5ac",
+      "gate": true,
+      "pass_rate": 0.864,
+      "failed": [
+        "instruction.adherence",
+        "narrative.structure",
+        "temporal.dialogue_continuity"
+      ],
+      "by_category": {
+        "visual": {
+          "rate": 1.0,
+          "total": 1,
+          "passed": 1
+        },
+        "captions": {
+          "rate": 1.0,
+          "total": 3,
+          "passed": 3
+        },
+        "temporal": {
+          "rate": 0.8,
+          "total": 5,
+          "passed": 4
+        },
+        "narrative": {
+          "rate": 0.0,
+          "total": 1,
+          "passed": 0
+        },
+        "technical": {
+          "rate": 1.0,
+          "total": 10,
+          "passed": 10
+        },
+        "instruction": {
+          "rate": 0.5,
+          "total": 2,
+          "passed": 1
+        }
+      },
+      "checks": {
+        "captions.accuracy": true,
+        "captions.present": null,
+        "captions.speech_coverage": true,
+        "captions.sync": true,
+        "instruction.adherence": false,
+        "instruction.preference_satisfaction": true,
+        "narrative.structure": false,
+        "technical.aspect_ratio": true,
+        "technical.audio_present": true,
+        "technical.av_stream_alignment": true,
+        "technical.black_frames": true,
+        "technical.duration_in_range": true,
+        "technical.file_valid": true,
+        "technical.frozen_frames": true,
+        "technical.loudness": true,
+        "technical.missing_media": true,
+        "technical.resolution": true,
+        "temporal.cut_through_word": true,
+        "temporal.dead_air": true,
+        "temporal.dialogue_continuity": false,
+        "temporal.repeated_footage": true,
+        "temporal.shot_durations": true,
+        "visual.framing": true
+      },
+      "scores": {
+        "captions.accuracy": 0.917,
+        "captions.speech_coverage": 1.0,
+        "instruction.adherence": 0.75,
+        "instruction.preference_satisfaction": 1.0,
+        "narrative.structure": 0.45
+      },
+      "duration": 18.233,
+      "seconds": 24.8
+    },
+    {
+      "task": "pc-02",
+      "category": "pacing_scene_selection",
+      "split": "development",
+      "session_id": "fee47362-5219-4350-ac5d-bb9e05583cf4",
+      "status": "rendered",
+      "steps": 7,
+      "log": [
+        "plan: 4 clips, ~21.7s",
+        "01 plan   select_clip: ok",
+        "02 plan   select_clip: ok",
+        "03 plan   select_clip: ok",
+        "04 plan   select_clip: ok",
+        "05 plan   apply_style: ok",
+        "06 plan   generate_captions: ok",
+        "repair #1: duration 28.42s outside target 20-25s -> ['trim_clip']",
+        "07 repair trim_clip: ok",
+        "render v7: 22.46s"
+      ],
+      "rejected": 0,
+      "repairs": 1,
+      "fixups": 0,
+      "trace_id": "6121407d-3a3c-44ea-90cc-64cfca893758",
+      "error": null,
+      "render_id": "a31c2b73-bf5d-4fb1-ac87-851543f71d59",
+      "evaluation_id": "cd30d37c-517b-4ebe-ac34-b389a3115717",
+      "gate": true,
+      "pass_rate": 0.773,
+      "failed": [
+        "instruction.preference_satisfaction",
+        "narrative.structure",
+        "temporal.cut_through_word",
+        "temporal.dialogue_continuity",
+        "visual.framing"
+      ],
+      "by_category": {
+        "visual": {
+          "rate": 0.0,
+          "total": 1,
+          "passed": 0
+        },
+        "captions": {
+          "rate": 1.0,
+          "total": 3,
+          "passed": 3
+        },
+        "temporal": {
+          "rate": 0.6,
+          "total": 5,
+          "passed": 3
+        },
+        "narrative": {
+          "rate": 0.0,
+          "total": 1,
+          "passed": 0
+        },
+        "technical": {
+          "rate": 1.0,
+          "total": 10,
+          "passed": 10
+        },
+        "instruction": {
+          "rate": 0.5,
+          "total": 2,
+          "passed": 1
+        }
+      },
+      "checks": {
+        "captions.accuracy": true,
+        "captions.present": null,
+        "captions.speech_coverage": true,
+        "captions.sync": true,
+        "instruction.adherence": true,
+        "instruction.preference_satisfaction": false,
+        "narrative.structure": false,
+        "technical.aspect_ratio": true,
+        "technical.audio_present": true,
+        "technical.av_stream_alignment": true,
+        "technical.black_frames": true,
+        "technical.duration_in_range": true,
+        "technical.file_valid": true,
+        "technical.frozen_frames": true,
+        "technical.loudness": true,
+        "technical.missing_media": true,
+        "technical.resolution": true,
+        "temporal.cut_through_word": false,
+        "temporal.dead_air": true,
+        "temporal.dialogue_continuity": false,
+        "temporal.repeated_footage": true,
+        "temporal.shot_durations": true,
+        "visual.framing": false
+      },
+      "scores": {
+        "captions.accuracy": 0.966,
+        "captions.speech_coverage": 0.968,
+        "instruction.adherence": 1.0,
+        "instruction.preference_satisfaction": 0.667,
+        "narrative.structure": 0.45
+      },
+      "duration": 22.467,
+      "seconds": 33.4
+    },
+    {
+      "task": "pc-03",
+      "category": "pacing_scene_selection",
+      "split": "development",
+      "session_id": "4cb1ef42-8fc6-49f2-b862-8c14ba4acf0f",
+      "status": "rendered",
+      "steps": 11,
+      "log": [
+        "plan: 4 clips, ~18.1s",
+        "01 plan   select_clip: ok",
+        "02 plan   select_clip: ok",
+        "03 plan   select_clip: ok",
+        "04 plan   select_clip: ok",
+        "05 plan   apply_style: ok",
+        "06 plan   generate_captions: ok",
+        "repair #1: duration 10.88s outside target 15-20s -> ['select_clip']",
+        "07 repair select_clip: ok",
+        "repair #2: duration 14.48s outside target 15-20s -> ['select_clip']",
+        "08 repair select_clip: ok",
+        "repair #3: duration 21.10s outside target 15-20s -> ['remove_clip']",
+        "09 repair remove_clip: ok",
+        "repair #4: duration 14.48s outside target 15-20s -> ['select_clip']",
+        "10 repair select_clip: ok",
+        "fixup: 1 deterministic trims",
+        "11 fixup  trim_clip: ok",
+        "render v11: 20.00s"
+      ],
+      "rejected": 0,
+      "repairs": 4,
+      "fixups": 1,
+      "trace_id": "3b3c0e98-366c-4132-8b9b-08c5fe489508",
+      "error": null,
+      "render_id": "30c12bb5-4af3-47ae-b13c-b00825712fd9",
+      "evaluation_id": "2de228c1-a516-4502-80a1-5358ad810157",
+      "gate": true,
+      "pass_rate": 0.818,
+      "failed": [
+        "narrative.structure",
+        "technical.black_frames",
+        "temporal.cut_through_word",
+        "temporal.dialogue_continuity"
+      ],
+      "by_category": {
+        "visual": {
+          "rate": 1.0,
+          "total": 1,
+          "passed": 1
+        },
+        "captions": {
+          "rate": 1.0,
+          "total": 3,
+          "passed": 3
+        },
+        "temporal": {
+          "rate": 0.6,
+          "total": 5,
+          "passed": 3
+        },
+        "narrative": {
+          "rate": 0.0,
+          "total": 1,
+          "passed": 0
+        },
+        "technical": {
+          "rate": 0.9,
+          "total": 10,
+          "passed": 9
+        },
+        "instruction": {
+          "rate": 1.0,
+          "total": 2,
+          "passed": 2
+        }
+      },
+      "checks": {
+        "captions.accuracy": true,
+        "captions.present": null,
+        "captions.speech_coverage": true,
+        "captions.sync": true,
+        "instruction.adherence": true,
+        "instruction.preference_satisfaction": true,
+        "narrative.structure": false,
+        "technical.aspect_ratio": true,
+        "technical.audio_present": true,
+        "technical.av_stream_alignment": true,
+        "technical.black_frames": false,
+        "technical.duration_in_range": true,
+        "technical.file_valid": true,
+        "technical.frozen_frames": true,
+        "technical.loudness": true,
+        "technical.missing_media": true,
+        "technical.resolution": true,
+        "temporal.cut_through_word": false,
+        "temporal.dead_air": true,
+        "temporal.dialogue_continuity": false,
+        "temporal.repeated_footage": true,
+        "temporal.shot_durations": true,
+        "visual.framing": true
+      },
+      "scores": {
+        "captions.accuracy": 0.87,
+        "captions.speech_coverage": 0.968,
+        "instruction.adherence": 1.0,
+        "instruction.preference_satisfaction": 1.0,
+        "narrative.structure": 0.4
+      },
+      "duration": 20.0,
+      "seconds": 40.1
+    },
+    {
+      "task": "pc-04",
+      "category": "pacing_scene_selection",
+      "split": "development",
+      "session_id": "28ed9524-4690-4898-8942-889dc086138d",
+      "status": "rendered",
+      "steps": 6,
+      "log": [
+        "plan: 3 clips, ~14.6s",
+        "01 plan   select_clip: ok",
+        "02 plan   select_clip: ok",
+        "03 plan   select_clip: ok",
+        "04 plan   apply_style: ok",
+        "05 plan   generate_captions: ok",
+        "repair #1: duration 14.36s outside target 15-20s -> ['trim_clip']",
+        "06 repair trim_clip: ok",
+        "render v6: 15.38s"
+      ],
+      "rejected": 0,
+      "repairs": 1,
+      "fixups": 0,
+      "trace_id": "d1a034d4-cef8-4b8a-a469-b47cbe4399fc",
+      "error": null,
+      "render_id": "44be0773-c8d3-423b-a843-3be68ccd63ce",
+      "evaluation_id": "522fea03-19fa-49aa-b5ad-b92bb7eb88ca",
+      "gate": true,
+      "pass_rate": 0.826,
+      "failed": [
+        "instruction.adherence",
+        "narrative.structure",
+        "temporal.dialogue_continuity",
+        "temporal.shot_durations"
+      ],
+      "by_category": {
+        "visual": {
+          "rate": 1.0,
+          "total": 1,
+          "passed": 1
+        },
+        "captions": {
+          "rate": 1.0,
+          "total": 4,
+          "passed": 4
+        },
+        "temporal": {
+          "rate": 0.6,
+          "total": 5,
+          "passed": 3
+        },
+        "narrative": {
+          "rate": 0.0,
+          "total": 1,
+          "passed": 0
+        },
+        "technical": {
+          "rate": 1.0,
+          "total": 10,
+          "passed": 10
+        },
+        "instruction": {
+          "rate": 0.5,
+          "total": 2,
+          "passed": 1
+        }
+      },
+      "checks": {
+        "captions.accuracy": true,
+        "captions.present": true,
+        "captions.speech_coverage": true,
+        "captions.sync": true,
+        "instruction.adherence": false,
+        "instruction.preference_satisfaction": true,
+        "narrative.structure": false,
+        "technical.aspect_ratio": true,
+        "technical.audio_present": true,
+        "technical.av_stream_alignment": true,
+        "technical.black_frames": true,
+        "technical.duration_in_range": true,
+        "technical.file_valid": true,
+        "technical.frozen_frames": true,
+        "technical.loudness": true,
+        "technical.missing_media": true,
+        "technical.resolution": true,
+        "temporal.cut_through_word": true,
+        "temporal.dead_air": true,
+        "temporal.dialogue_continuity": false,
+        "temporal.repeated_footage": true,
+        "temporal.shot_durations": false,
+        "visual.framing": true
+      },
+      "scores": {
+        "captions.accuracy": 1.0,
+        "captions.speech_coverage": 1.0,
+        "instruction.adherence": 0.0,
+        "instruction.preference_satisfaction": 1.0,
+        "narrative.structure": 0.5
+      },
+      "duration": 15.4,
+      "seconds": 28.0
+    },
+    {
+      "task": "ps-01",
+      "category": "personalization",
+      "split": "development",
+      "session_id": "eb1cb807-1e2f-4457-98a0-0fe00610e560",
+      "status": "rendered",
+      "steps": 5,
+      "log": [
+        "plan: 2 clips, ~30.4s",
+        "01 plan   select_clip: ok",
+        "02 plan   select_clip: ok",
+        "03 plan   apply_style: ok",
+        "04 plan   generate_captions: ok",
+        "repair #1: duration 30.40s outside target 15-25s -> ['trim_clip']",
+        "05 repair trim_clip: ok",
+        "render v5: 21.23s"
+      ],
+      "rejected": 0,
+      "repairs": 1,
+      "fixups": 0,
+      "trace_id": "f5da4172-9935-470e-bcf4-4512d6b70dbf",
+      "error": null,
+      "render_id": "f2f6b3cc-242d-4f99-846e-2f7fce57981e",
+      "evaluation_id": "0e057cc9-2f0f-4a99-a34d-137822ae7a77",
+      "gate": true,
+      "pass_rate": 0.818,
+      "failed": [
+        "instruction.preference_satisfaction",
+        "narrative.structure",
+        "temporal.cut_through_word",
+        "temporal.shot_durations"
+      ],
+      "by_category": {
+        "visual": {
+          "rate": 1.0,
+          "total": 1,
+          "passed": 1
+        },
+        "captions": {
+          "rate": 1.0,
+          "total": 3,
+          "passed": 3
+        },
+        "temporal": {
+          "rate": 0.6,
+          "total": 5,
+          "passed": 3
+        },
+        "narrative": {
+          "rate": 0.0,
+          "total": 1,
+          "passed": 0
+        },
+        "technical": {
+          "rate": 1.0,
+          "total": 10,
+          "passed": 10
+        },
+        "instruction": {
+          "rate": 0.5,
+          "total": 2,
+          "passed": 1
+        }
+      },
+      "checks": {
+        "captions.accuracy": true,
+        "captions.present": null,
+        "captions.speech_coverage": true,
+        "captions.sync": true,
+        "instruction.adherence": true,
+        "instruction.preference_satisfaction": false,
+        "narrative.structure": false,
+        "technical.aspect_ratio": true,
+        "technical.audio_present": true,
+        "technical.av_stream_alignment": true,
+        "technical.black_frames": true,
+        "technical.duration_in_range": true,
+        "technical.file_valid": true,
+        "technical.frozen_frames": true,
+        "technical.loudness": true,
+        "technical.missing_media": true,
+        "technical.resolution": true,
+        "temporal.cut_through_word": false,
+        "temporal.dead_air": true,
+        "temporal.dialogue_continuity": true,
+        "temporal.repeated_footage": true,
+        "temporal.shot_durations": false,
+        "visual.framing": true
+      },
+      "scores": {
+        "captions.accuracy": 0.945,
+        "captions.speech_coverage": 1.0,
+        "instruction.adherence": 1.0,
+        "instruction.preference_satisfaction": 0.667,
+        "narrative.structure": 0.45
+      },
+      "duration": 21.233,
+      "seconds": 35.5
+    },
+    {
+      "task": "ps-02",
+      "category": "personalization",
+      "split": "development",
+      "session_id": "ab80224f-58ab-4ed2-ad3f-fd3c3e0a31d0",
+      "status": "rendered",
+      "steps": 7,
+      "log": [
+        "plan: 4 clips, ~13.5s",
+        "01 plan   select_clip: ok",
+        "02 plan   select_clip: ok",
+        "03 plan   select_clip: ok",
+        "04 plan   select_clip: ok",
+        "05 plan   apply_style: ok",
+        "06 plan   generate_captions: ok",
+        "07 plan   add_title: ok",
+        "render v7: 12.90s"
+      ],
+      "rejected": 0,
+      "repairs": 0,
+      "fixups": 0,
+      "trace_id": "5909dcf9-a5cb-4c23-860b-2d76ed9f9075",
+      "error": null,
+      "render_id": "81be21e3-fc4c-495b-a33d-127c0a64a9d5",
+      "evaluation_id": "ff2075eb-ddf8-46ed-bb86-32519a8b53a5",
+      "gate": true,
+      "pass_rate": 0.864,
+      "failed": [
+        "instruction.preference_satisfaction",
+        "narrative.structure",
+        "temporal.dialogue_continuity"
+      ],
+      "by_category": {
+        "visual": {
+          "rate": 1.0,
+          "total": 1,
+          "passed": 1
+        },
+        "captions": {
+          "rate": 1.0,
+          "total": 3,
+          "passed": 3
+        },
+        "temporal": {
+          "rate": 0.8,
+          "total": 5,
+          "passed": 4
+        },
+        "narrative": {
+          "rate": 0.0,
+          "total": 1,
+          "passed": 0
+        },
+        "technical": {
+          "rate": 1.0,
+          "total": 10,
+          "passed": 10
+        },
+        "instruction": {
+          "rate": 0.5,
+          "total": 2,
+          "passed": 1
+        }
+      },
+      "checks": {
+        "captions.accuracy": true,
+        "captions.present": null,
+        "captions.speech_coverage": true,
+        "captions.sync": true,
+        "instruction.adherence": true,
+        "instruction.preference_satisfaction": false,
+        "narrative.structure": false,
+        "technical.aspect_ratio": true,
+        "technical.audio_present": true,
+        "technical.av_stream_alignment": true,
+        "technical.black_frames": true,
+        "technical.duration_in_range": true,
+        "technical.file_valid": true,
+        "technical.frozen_frames": true,
+        "technical.loudness": true,
+        "technical.missing_media": true,
+        "technical.resolution": true,
+        "temporal.cut_through_word": true,
+        "temporal.dead_air": true,
+        "temporal.dialogue_continuity": false,
+        "temporal.repeated_footage": true,
+        "temporal.shot_durations": true,
+        "visual.framing": true
+      },
+      "scores": {
+        "captions.accuracy": 0.971,
+        "captions.speech_coverage": 0.961,
+        "instruction.adherence": 1.0,
+        "instruction.preference_satisfaction": 0.667,
+        "narrative.structure": 0.35
+      },
+      "duration": 12.9,
+      "seconds": 29.1,
+      "judge_errors": 0
+    },
+    {
+      "task": "ps-03",
+      "category": "personalization",
+      "split": "development",
+      "session_id": "f64a3288-1f7c-4834-b4a0-8565125120b7",
+      "status": "rendered",
+      "steps": 8,
+      "log": [
+        "plan: 5 clips, ~16.9s",
+        "01 plan   select_clip: ok",
+        "02 plan   select_clip: ok",
+        "03 plan   select_clip: ok",
+        "04 plan   select_clip: ok",
+        "05 plan   select_clip: ok",
+        "06 plan   apply_style: ok",
+        "07 plan   generate_captions: ok",
+        "08 plan   add_title: ok",
+        "render v8: 16.25s"
+      ],
+      "rejected": 0,
+      "repairs": 0,
+      "fixups": 0,
+      "trace_id": "5db3e642-f9c0-44ea-93b4-745e78e42466",
+      "error": null,
+      "render_id": "8b37e83e-a2c9-4b78-a48d-2878b5360085",
+      "evaluation_id": "30f1cd82-f7c8-4f66-b954-066a7d9aa794",
+      "gate": true,
+      "pass_rate": 0.818,
+      "failed": [
+        "narrative.structure",
+        "temporal.cut_through_word",
+        "temporal.dialogue_continuity",
+        "visual.framing"
+      ],
+      "by_category": {
+        "visual": {
+          "rate": 0.0,
+          "total": 1,
+          "passed": 0
+        },
+        "captions": {
+          "rate": 1.0,
+          "total": 3,
+          "passed": 3
+        },
+        "temporal": {
+          "rate": 0.6,
+          "total": 5,
+          "passed": 3
+        },
+        "narrative": {
+          "rate": 0.0,
+          "total": 1,
+          "passed": 0
+        },
+        "technical": {
+          "rate": 1.0,
+          "total": 10,
+          "passed": 10
+        },
+        "instruction": {
+          "rate": 1.0,
+          "total": 2,
+          "passed": 2
+        }
+      },
+      "checks": {
+        "captions.accuracy": true,
+        "captions.present": null,
+        "captions.speech_coverage": true,
+        "captions.sync": true,
+        "instruction.adherence": true,
+        "instruction.preference_satisfaction": true,
+        "narrative.structure": false,
+        "technical.aspect_ratio": true,
+        "technical.audio_present": true,
+        "technical.av_stream_alignment": true,
+        "technical.black_frames": true,
+        "technical.duration_in_range": true,
+        "technical.file_valid": true,
+        "technical.frozen_frames": true,
+        "technical.loudness": true,
+        "technical.missing_media": true,
+        "technical.resolution": true,
+        "temporal.cut_through_word": false,
+        "temporal.dead_air": true,
+        "temporal.dialogue_continuity": false,
+        "temporal.repeated_footage": true,
+        "temporal.shot_durations": true,
+        "visual.framing": false
+      },
+      "scores": {
+        "captions.accuracy": 0.889,
+        "captions.speech_coverage": 0.906,
+        "instruction.adherence": 1.0,
+        "instruction.preference_satisfaction": 1.0,
+        "narrative.structure": 0.2
+      },
+      "duration": 16.267,
+      "seconds": 39.5,
+      "judge_errors": 0
+    },
+    {
+      "task": "rs-01",
+      "category": "reference_style",
+      "split": "development",
+      "session_id": "33742330-278d-45cd-b2cc-17e66e572b38",
+      "status": "rendered",
+      "steps": 13,
+      "log": [
+        "plan: 5 clips, ~22.0s",
+        "01 plan   select_clip: ok",
+        "02 plan   select_clip: ok",
+        "03 plan   select_clip: ok",
+        "04 plan   select_clip: ok",
+        "05 plan   select_clip: ok",
+        "06 plan   add_transition: ok",
+        "07 plan   add_transition: ok",
+        "08 plan   add_transition: ok",
+        "09 plan   add_transition: ok",
+        "10 plan   apply_style: ok",
+        "11 plan   generate_captions: ok",
+        "repair #1: duration 19.30s outside target 20-28s -> ['select_clip']",
+        "12 repair select_clip: ok",
+        "repair #2: duration 29.80s outside target 20-28s -> ['trim_clip']",
+        "13 repair trim_clip: ok",
+        "render v13: 26.84s"
+      ],
+      "rejected": 0,
+      "repairs": 2,
+      "fixups": 0,
+      "trace_id": "738be283-22f1-4a0e-acbe-56fe4d2f1bed",
+      "error": null,
+      "judge_errors": 0,
+      "render_id": "204022ae-b6c6-40a1-9352-1a87ff5009ee",
+      "evaluation_id": "7a88308f-01ae-4807-9c94-28197d22c6bf",
+      "gate": true,
+      "pass_rate": 0.72,
+      "failed": [
+        "captions.accuracy",
+        "narrative.structure",
+        "style.caption_match",
+        "style.color_similarity",
+        "style.shot_length_similarity",
+        "temporal.dialogue_continuity",
+        "temporal.shot_durations"
+      ],
+      "by_category": {
+        "style": {
+          "rate": 0.0,
+          "total": 3,
+          "passed": 0
+        },
+        "visual": {
+          "rate": 1.0,
+          "total": 1,
+          "passed": 1
+        },
+        "captions": {
+          "rate": 0.667,
+          "total": 3,
+          "passed": 2
+        },
+        "temporal": {
+          "rate": 0.6,
+          "total": 5,
+          "passed": 3
+        },
+        "narrative": {
+          "rate": 0.0,
+          "total": 1,
+          "passed": 0
+        },
+        "technical": {
+          "rate": 1.0,
+          "total": 10,
+          "passed": 10
+        },
+        "instruction": {
+          "rate": 1.0,
+          "total": 2,
+          "passed": 2
+        }
+      },
+      "checks": {
+        "captions.accuracy": false,
+        "captions.present": null,
+        "captions.speech_coverage": true,
+        "captions.sync": true,
+        "instruction.adherence": true,
+        "instruction.preference_satisfaction": true,
+        "narrative.structure": false,
+        "style.caption_match": false,
+        "style.color_similarity": false,
+        "style.shot_length_similarity": false,
+        "technical.aspect_ratio": true,
+        "technical.audio_present": true,
+        "technical.av_stream_alignment": true,
+        "technical.black_frames": true,
+        "technical.duration_in_range": true,
+        "technical.file_valid": true,
+        "technical.frozen_frames": true,
+        "technical.loudness": true,
+        "technical.missing_media": true,
+        "technical.resolution": true,
+        "temporal.cut_through_word": true,
+        "temporal.dead_air": true,
+        "temporal.dialogue_continuity": false,
+        "temporal.repeated_footage": true,
+        "temporal.shot_durations": false,
+        "visual.framing": true
+      },
+      "scores": {
+        "captions.accuracy": 0.845,
+        "captions.speech_coverage": 0.968,
+        "instruction.adherence": 1.0,
+        "instruction.preference_satisfaction": 1.0,
+        "narrative.structure": 0.5,
+        "style.color_similarity": 0.097,
+        "style.shot_length_similarity": 0.22
+      },
+      "duration": 26.867,
+      "seconds": 50.2
+    },
+    {
+      "task": "rs-02",
+      "category": "reference_style",
+      "split": "development",
+      "session_id": "4601e4fe-ebf1-4b6d-b42d-97feaf987c49",
+      "status": "rendered",
+      "steps": 8,
+      "log": [
+        "plan: 3 clips, ~24.3s",
+        "01 plan   select_clip: ok",
+        "02 plan   select_clip: ok",
+        "03 plan   select_clip: ok",
+        "04 plan   add_transition: ok",
+        "05 plan   add_transition: ok",
+        "06 plan   apply_style: ok",
+        "07 plan   generate_captions: ok",
+        "repair #1: duration 27.66s outside target 20-25s -> ['trim_clip']",
+        "08 repair trim_clip: ok",
+        "render v8: 22.49s"
+      ],
+      "rejected": 0,
+      "repairs": 1,
+      "fixups": 0,
+      "trace_id": "b661ae76-31b2-48de-99e8-ce6039061fa1",
+      "error": null,
+      "judge_errors": 0,
+      "render_id": "3b0ce923-c2f2-494f-9a9f-1841d331e29c",
+      "evaluation_id": "b1f5bef1-17ba-4959-80ec-8f4758f639c0",
+      "gate": true,
+      "pass_rate": 0.76,
+      "failed": [
+        "narrative.structure",
+        "style.caption_match",
+        "style.shot_length_similarity",
+        "temporal.cut_through_word",
+        "temporal.dialogue_continuity",
+        "temporal.shot_durations"
+      ],
+      "by_category": {
+        "style": {
+          "rate": 0.333,
+          "total": 3,
+          "passed": 1
+        },
+        "visual": {
+          "rate": 1.0,
+          "total": 1,
+          "passed": 1
+        },
+        "captions": {
+          "rate": 1.0,
+          "total": 3,
+          "passed": 3
+        },
+        "temporal": {
+          "rate": 0.4,
+          "total": 5,
+          "passed": 2
+        },
+        "narrative": {
+          "rate": 0.0,
+          "total": 1,
+          "passed": 0
+        },
+        "technical": {
+          "rate": 1.0,
+          "total": 10,
+          "passed": 10
+        },
+        "instruction": {
+          "rate": 1.0,
+          "total": 2,
+          "passed": 2
+        }
+      },
+      "checks": {
+        "captions.accuracy": true,
+        "captions.present": null,
+        "captions.speech_coverage": true,
+        "captions.sync": true,
+        "instruction.adherence": true,
+        "instruction.preference_satisfaction": true,
+        "narrative.structure": false,
+        "style.caption_match": false,
+        "style.color_similarity": true,
+        "style.shot_length_similarity": false,
+        "technical.aspect_ratio": true,
+        "technical.audio_present": true,
+        "technical.av_stream_alignment": true,
+        "technical.black_frames": true,
+        "technical.duration_in_range": true,
+        "technical.file_valid": true,
+        "technical.frozen_frames": true,
+        "technical.loudness": true,
+        "technical.missing_media": true,
+        "technical.resolution": true,
+        "temporal.cut_through_word": false,
+        "temporal.dead_air": true,
+        "temporal.dialogue_continuity": false,
+        "temporal.repeated_footage": true,
+        "temporal.shot_durations": false,
+        "visual.framing": true
+      },
+      "scores": {
+        "captions.accuracy": 0.946,
+        "captions.speech_coverage": 1.0,
+        "instruction.adherence": 1.0,
+        "instruction.preference_satisfaction": 1.0,
+        "narrative.structure": 0.5,
+        "style.color_similarity": 0.87,
+        "style.shot_length_similarity": 0.145
+      },
+      "duration": 22.5,
+      "seconds": 47.0
+    },
+    {
+      "task": "rs-03",
+      "category": "reference_style",
+      "split": "development",
+      "session_id": "2988edbf-ab01-42cc-bfea-284b0d5a74f2",
+      "status": "rendered",
+      "steps": 7,
+      "log": [
+        "plan: 4 clips, ~19.0s",
+        "01 plan   select_clip: ok",
+        "02 plan   select_clip: ok",
+        "03 plan   select_clip: ok",
+        "04 plan   select_clip: ok",
+        "05 plan   apply_style: ok",
+        "06 plan   generate_captions: ok",
+        "repair #1: duration 17.84s outside target 18-24s -> ['select_clip']",
+        "07 repair select_clip: ok",
+        "render v7: 18.64s"
+      ],
+      "rejected": 0,
+      "repairs": 1,
+      "fixups": 0,
+      "trace_id": "72f9d061-7312-4745-aa3c-6d0d0a7a6f53",
+      "error": null,
+      "judge_errors": 0,
+      "render_id": "ab8f42f2-cb80-4e3c-b8ef-75b6fcd89a33",
+      "evaluation_id": "63345f7f-d3dd-4e1d-b4b1-27930e7dceb6",
+      "gate": true,
+      "pass_rate": 0.76,
+      "failed": [
+        "narrative.structure",
+        "style.caption_match",
+        "style.shot_length_similarity",
+        "technical.black_frames",
+        "temporal.cut_through_word",
+        "temporal.dialogue_continuity"
+      ],
+      "by_category": {
+        "style": {
+          "rate": 0.333,
+          "total": 3,
+          "passed": 1
+        },
+        "visual": {
+          "rate": 1.0,
+          "total": 1,
+          "passed": 1
+        },
+        "captions": {
+          "rate": 1.0,
+          "total": 3,
+          "passed": 3
+        },
+        "temporal": {
+          "rate": 0.6,
+          "total": 5,
+          "passed": 3
+        },
+        "narrative": {
+          "rate": 0.0,
+          "total": 1,
+          "passed": 0
+        },
+        "technical": {
+          "rate": 0.9,
+          "total": 10,
+          "passed": 9
+        },
+        "instruction": {
+          "rate": 1.0,
+          "total": 2,
+          "passed": 2
+        }
+      },
+      "checks": {
+        "captions.accuracy": true,
+        "captions.present": null,
+        "captions.speech_coverage": true,
+        "captions.sync": true,
+        "instruction.adherence": true,
+        "instruction.preference_satisfaction": true,
+        "narrative.structure": false,
+        "style.caption_match": false,
+        "style.color_similarity": true,
+        "style.shot_length_similarity": false,
+        "technical.aspect_ratio": true,
+        "technical.audio_present": true,
+        "technical.av_stream_alignment": true,
+        "technical.black_frames": false,
+        "technical.duration_in_range": true,
+        "technical.file_valid": true,
+        "technical.frozen_frames": true,
+        "technical.loudness": true,
+        "technical.missing_media": true,
+        "technical.resolution": true,
+        "temporal.cut_through_word": false,
+        "temporal.dead_air": true,
+        "temporal.dialogue_continuity": false,
+        "temporal.repeated_footage": true,
+        "temporal.shot_durations": true,
+        "visual.framing": true
+      },
+      "scores": {
+        "captions.accuracy": 0.896,
+        "captions.speech_coverage": 0.985,
+        "instruction.adherence": 1.0,
+        "instruction.preference_satisfaction": 1.0,
+        "narrative.structure": 0.3,
+        "style.color_similarity": 0.551,
+        "style.shot_length_similarity": 0.24
+      },
+      "duration": 18.667,
+      "seconds": 37.9
+    },
+    {
+      "task": "ac-04",
+      "category": "audio_captions",
+      "split": "validation",
+      "session_id": "b480c7c1-6aa3-4f28-9a7b-14e917d97b80",
+      "status": "rendered",
+      "steps": 5,
+      "log": [
+        "plan: 2 clips, ~22.8s",
+        "01 plan   select_clip: ok",
+        "02 plan   select_clip: ok",
+        "03 plan   apply_style: ok",
+        "04 plan   generate_captions: ok",
+        "repair #1: duration 22.78s outside target 18-22s -> ['trim_clip']",
+        "05 repair trim_clip: ok",
+        "render v5: 18.07s"
+      ],
+      "rejected": 0,
+      "repairs": 1,
+      "fixups": 0,
+      "trace_id": "fa4173d1-26af-43c6-91e9-203e80762596",
+      "error": null,
+      "judge_errors": 0,
+      "render_id": "b712e2c6-4d41-4b15-926f-8fe9f134c79f",
+      "evaluation_id": "ebe97d75-5d42-423e-8bab-35477b64d5d3",
+      "gate": true,
+      "pass_rate": 0.87,
+      "failed": [
+        "narrative.structure",
+        "temporal.cut_through_word",
+        "temporal.shot_durations"
+      ],
+      "by_category": {
+        "visual": {
+          "rate": 1.0,
+          "total": 1,
+          "passed": 1
+        },
+        "captions": {
+          "rate": 1.0,
+          "total": 4,
+          "passed": 4
+        },
+        "temporal": {
+          "rate": 0.6,
+          "total": 5,
+          "passed": 3
+        },
+        "narrative": {
+          "rate": 0.0,
+          "total": 1,
+          "passed": 0
+        },
+        "technical": {
+          "rate": 1.0,
+          "total": 10,
+          "passed": 10
+        },
+        "instruction": {
+          "rate": 1.0,
+          "total": 2,
+          "passed": 2
+        }
+      },
+      "checks": {
+        "captions.accuracy": true,
+        "captions.present": true,
+        "captions.speech_coverage": true,
+        "captions.sync": true,
+        "instruction.adherence": true,
+        "instruction.preference_satisfaction": true,
+        "narrative.structure": false,
+        "technical.aspect_ratio": true,
+        "technical.audio_present": true,
+        "technical.av_stream_alignment": true,
+        "technical.black_frames": true,
+        "technical.duration_in_range": true,
+        "technical.file_valid": true,
+        "technical.frozen_frames": true,
+        "technical.loudness": true,
+        "technical.missing_media": true,
+        "technical.resolution": true,
+        "temporal.cut_through_word": false,
+        "temporal.dead_air": true,
+        "temporal.dialogue_continuity": true,
+        "temporal.repeated_footage": true,
+        "temporal.shot_durations": false,
+        "visual.framing": true
+      },
+      "scores": {
+        "captions.accuracy": 0.949,
+        "captions.speech_coverage": 1.0,
+        "instruction.adherence": 1.0,
+        "instruction.preference_satisfaction": 1.0,
+        "narrative.structure": 0.4
+      },
+      "duration": 18.1,
+      "seconds": 36.4
+    },
+    {
+      "task": "if-06",
+      "category": "instruction_following",
+      "split": "validation",
+      "session_id": "ca7c945d-3c98-41bb-92d5-52cf77e6b88c",
+      "status": "rendered",
+      "steps": 10,
+      "log": [
+        "plan: 3 clips, ~12.0s",
+        "01 plan   select_clip: ok",
+        "02 plan   select_clip: ok",
+        "03 plan   select_clip: ok",
+        "04 plan   apply_style: ok",
+        "05 plan   generate_captions: ok",
+        "repair #1: duration 16.08s outside target 18-24s -> ['select_clip']",
+        "06 repair select_clip: ok",
+        "repair #2: duration 28.37s outside target 18-24s -> ['remove_clip']",
+        "07 repair remove_clip: ok",
+        "repair #3: duration 16.08s outside target 18-24s -> ['select_clipping']",
+        "08 repair select_clipping: REJECTED unknown operation 'select_clipping'; valid: search_scenes, select_clip, trim_clip, remove_clip, reorder_clips, add_transition, adjust_audio, set_framing, add_caption, generate_captions, add_title, apply_style",
+        "repair #4: select_clipping({'src_out': 26.08, 'src_in': 15.58, 'scene_id': 'S3'}) rejected: unknown operation 'select_clipping'; valid: search_scenes, select_clip, trim_cl -> ['select_clip']",
+        "09 repair select_clip: ok",
+        "fixup: 1 deterministic trims",
+        "10 fixup  trim_clip: ok",
+        "render v9: 24.00s"
+      ],
+      "rejected": 1,
+      "repairs": 4,
+      "fixups": 1,
+      "trace_id": "25052ec0-12fd-494c-8214-6697a12ef8f9",
+      "error": null,
+      "judge_errors": 0,
+      "render_id": "2c4fb121-d07c-4e07-9192-8905e1c5309f",
+      "evaluation_id": "7970fb54-010e-48c0-9407-bb665bdc15c4",
+      "gate": true,
+      "pass_rate": 0.792,
+      "failed": [
+        "instruction.preference_satisfaction",
+        "narrative.structure",
+        "temporal.dialogue_continuity",
+        "temporal.repeated_footage",
+        "visual.framing"
+      ],
+      "by_category": {
+        "visual": {
+          "rate": 0.0,
+          "total": 1,
+          "passed": 0
+        },
+        "captions": {
+          "rate": 1.0,
+          "total": 4,
+          "passed": 4
+        },
+        "temporal": {
+          "rate": 0.6,
+          "total": 5,
+          "passed": 3
+        },
+        "narrative": {
+          "rate": 0.0,
+          "total": 1,
+          "passed": 0
+        },
+        "technical": {
+          "rate": 1.0,
+          "total": 10,
+          "passed": 10
+        },
+        "instruction": {
+          "rate": 0.667,
+          "total": 3,
+          "passed": 2
+        }
+      },
+      "checks": {
+        "captions.accuracy": true,
+        "captions.present": true,
+        "captions.speech_coverage": true,
+        "captions.sync": true,
+        "instruction.adherence": true,
+        "instruction.must_include": true,
+        "instruction.preference_satisfaction": false,
+        "narrative.structure": false,
+        "technical.aspect_ratio": true,
+        "technical.audio_present": true,
+        "technical.av_stream_alignment": true,
+        "technical.black_frames": true,
+        "technical.duration_in_range": true,
+        "technical.file_valid": true,
+        "technical.frozen_frames": true,
+        "technical.loudness": true,
+        "technical.missing_media": true,
+        "technical.resolution": true,
+        "temporal.cut_through_word": true,
+        "temporal.dead_air": true,
+        "temporal.dialogue_continuity": false,
+        "temporal.repeated_footage": false,
+        "temporal.shot_durations": true,
+        "visual.framing": false
+      },
+      "scores": {
+        "captions.accuracy": 0.913,
+        "captions.speech_coverage": 0.933,
+        "instruction.adherence": 1.0,
+        "instruction.preference_satisfaction": 0.667,
+        "narrative.structure": 0.45
+      },
+      "duration": 24.0,
+      "seconds": 59.6
+    },
+    {
+      "task": "pc-05",
+      "category": "pacing_scene_selection",
+      "split": "validation",
+      "session_id": "468edd30-133f-4190-9631-8755a4b5efcf",
+      "status": "failed",
+      "steps": 21,
+      "log": [
+        "plan: 5 clips, ~20.4s",
+        "01 plan   select_clip: ok",
+        "02 plan   select_clip: ok",
+        "03 plan   select_clip: ok",
+        "04 plan   select_clip: ok",
+        "05 plan   select_clip: ok",
+        "06 plan   apply_style: ok",
+        "07 plan   generate_captions: ok",
+        "repair #1: duration 17.65s outside target 20-25s -> ['select_clip']",
+        "08 repair select_clip: ok",
+        "repair #2: duration 27.61s outside target 20-25s -> ['remove_clip']",
+        "09 repair remove_clip: ok",
+        "repair #3: duration 17.65s outside target 20-25s -> ['select_clip']",
+        "10 repair select_clip: ok",
+        "repair #4: duration 31.72s outside target 20-25s -> ['select_clip', 'select_clip', 'select_clip', 'select_clip', 'select_clip', 'remove_clip', 'remove_clip', 'remove_clip', 'remove_clip', 'remove_clip', 'remove_clip']",
+        "11 repair select_clip: ok",
+        "12 repair select_clip: ok",
+        "13 repair select_clip: ok",
+        "14 repair select_clip: ok",
+        "15 repair select_clip: ok",
+        "16 repair remove_clip: ok",
+        "17 repair remove_clip: ok",
+        "18 repair remove_clip: ok",
+        "19 repair remove_clip: ok",
+        "20 repair remove_clip: ok",
+        "21 repair remove_clip: ok",
+        "fixup: 0 deterministic trims",
+        "failed: ['duration 17.65s outside target 20-25s']"
+      ],
+      "rejected": 0,
+      "repairs": 14,
+      "fixups": 0,
+      "trace_id": "f64261e0-af16-423c-93cf-a073d2de8247",
+      "error": "duration 17.65s outside target 20-25s",
+      "seconds": 36.0
+    },
+    {
+      "task": "pc-06",
+      "category": "pacing_scene_selection",
+      "split": "validation",
+      "session_id": "daec6c27-6558-45c6-946e-61f47486b1b8",
+      "status": "rendered",
+      "steps": 9,
+      "log": [
+        "plan: 2 clips, ~14.4s",
+        "01 plan   select_clip: ok",
+        "02 plan   select_clip: ok",
+        "03 plan   apply_style: ok",
+        "04 plan   generate_captions: ok",
+        "repair #1: duration 8.38s outside target 12-15s -> ['select_clip', 'select_clip', 'reorder_clips']",
+        "05 repair select_clip: ok",
+        "06 repair select_clip: ok",
+        "07 repair reorder_clips: REJECTED order must be a permutation of 0..3, got [1, 0]",
+        "repair #2: reorder_clips({'order': [1, 0]}) rejected: order must be a permutation of 0..3, got [1, 0] -> ['remove_clip']",
+        "08 repair remove_clip: ok",
+        "repair #3: duration 15.15s outside target 12-15s -> ['trim_clip']",
+        "09 repair trim_clip: ok",
+        "render v8: 12.56s"
+      ],
+      "rejected": 1,
+      "repairs": 5,
+      "fixups": 0,
+      "trace_id": "8bfeaa65-222f-4b49-aaf0-2a91cc50ddf0",
+      "error": null,
+      "judge_errors": 0,
+      "render_id": "fd0e14ab-2439-4d09-88b5-43ec630b9b1e",
+      "evaluation_id": "6d93bfbf-4a1c-426b-bab5-efef39fb67ad",
+      "gate": true,
+      "pass_rate": 0.818,
+      "failed": [
+        "narrative.structure",
+        "temporal.dialogue_continuity",
+        "temporal.repeated_footage",
+        "visual.framing"
+      ],
+      "by_category": {
+        "visual": {
+          "rate": 0.0,
+          "total": 1,
+          "passed": 0
+        },
+        "captions": {
+          "rate": 1.0,
+          "total": 3,
+          "passed": 3
+        },
+        "temporal": {
+          "rate": 0.6,
+          "total": 5,
+          "passed": 3
+        },
+        "narrative": {
+          "rate": 0.0,
+          "total": 1,
+          "passed": 0
+        },
+        "technical": {
+          "rate": 1.0,
+          "total": 10,
+          "passed": 10
+        },
+        "instruction": {
+          "rate": 1.0,
+          "total": 2,
+          "passed": 2
+        }
+      },
+      "checks": {
+        "captions.accuracy": true,
+        "captions.present": null,
+        "captions.speech_coverage": true,
+        "captions.sync": true,
+        "instruction.adherence": true,
+        "instruction.preference_satisfaction": true,
+        "narrative.structure": false,
+        "technical.aspect_ratio": true,
+        "technical.audio_present": true,
+        "technical.av_stream_alignment": true,
+        "technical.black_frames": true,
+        "technical.duration_in_range": true,
+        "technical.file_valid": true,
+        "technical.frozen_frames": true,
+        "technical.loudness": true,
+        "technical.missing_media": true,
+        "technical.resolution": true,
+        "temporal.cut_through_word": true,
+        "temporal.dead_air": true,
+        "temporal.dialogue_continuity": false,
+        "temporal.repeated_footage": false,
+        "temporal.shot_durations": true,
+        "visual.framing": false
+      },
+      "scores": {
+        "captions.accuracy": 0.875,
+        "captions.speech_coverage": 0.903,
+        "instruction.adherence": 1.0,
+        "instruction.preference_satisfaction": 1.0,
+        "narrative.structure": 0.35
+      },
+      "duration": 12.567,
+      "seconds": 40.3
+    },
+    {
+      "task": "ps-04",
+      "category": "personalization",
+      "split": "validation",
+      "session_id": "17fe6891-662e-4d32-b54e-ea483f63e17c",
+      "status": "rendered",
+      "steps": 7,
+      "log": [
+        "plan: 3 clips, ~34.7s",
+        "01 plan   select_clip: ok",
+        "02 plan   select_clip: ok",
+        "03 plan   select_clip: ok",
+        "04 plan   apply_style: ok",
+        "05 plan   generate_captions: ok",
+        "repair #1: duration 35.76s outside target 15-25s -> ['trim_clip']",
+        "06 repair trim_clip: ok",
+        "repair #2: duration 28.36s outside target 15-25s -> ['trim_clip']",
+        "07 repair trim_clip: ok",
+        "render v7: 21.21s"
+      ],
+      "rejected": 0,
+      "repairs": 2,
+      "fixups": 0,
+      "trace_id": "33b009a2-df2e-4ab1-ab50-65e6fb19f0e3",
+      "error": null,
+      "judge_errors": 0,
+      "render_id": "0d210e02-19d5-4a73-aaec-0f7877e43b3a",
+      "evaluation_id": "13776dd9-8b1b-48c5-a63d-a1f79ec95af3",
+      "gate": true,
+      "pass_rate": 0.773,
+      "failed": [
+        "instruction.preference_satisfaction",
+        "narrative.structure",
+        "temporal.cut_through_word",
+        "temporal.dialogue_continuity",
+        "temporal.shot_durations"
+      ],
+      "by_category": {
+        "visual": {
+          "rate": 1.0,
+          "total": 1,
+          "passed": 1
+        },
+        "captions": {
+          "rate": 1.0,
+          "total": 3,
+          "passed": 3
+        },
+        "temporal": {
+          "rate": 0.4,
+          "total": 5,
+          "passed": 2
+        },
+        "narrative": {
+          "rate": 0.0,
+          "total": 1,
+          "passed": 0
+        },
+        "technical": {
+          "rate": 1.0,
+          "total": 10,
+          "passed": 10
+        },
+        "instruction": {
+          "rate": 0.5,
+          "total": 2,
+          "passed": 1
+        }
+      },
+      "checks": {
+        "captions.accuracy": true,
+        "captions.present": null,
+        "captions.speech_coverage": true,
+        "captions.sync": true,
+        "instruction.adherence": true,
+        "instruction.preference_satisfaction": false,
+        "narrative.structure": false,
+        "technical.aspect_ratio": true,
+        "technical.audio_present": true,
+        "technical.av_stream_alignment": true,
+        "technical.black_frames": true,
+        "technical.duration_in_range": true,
+        "technical.file_valid": true,
+        "technical.frozen_frames": true,
+        "technical.loudness": true,
+        "technical.missing_media": true,
+        "technical.resolution": true,
+        "temporal.cut_through_word": false,
+        "temporal.dead_air": true,
+        "temporal.dialogue_continuity": false,
+        "temporal.repeated_footage": true,
+        "temporal.shot_durations": false,
+        "visual.framing": true
+      },
+      "scores": {
+        "captions.accuracy": 0.983,
+        "captions.speech_coverage": 1.0,
+        "instruction.adherence": 1.0,
+        "instruction.preference_satisfaction": 0.667,
+        "narrative.structure": 0.35
+      },
+      "duration": 21.233,
+      "seconds": 60.3
+    },
+    {
+      "task": "rs-04",
+      "category": "reference_style",
+      "split": "validation",
+      "session_id": "ca750fb3-fafb-4b62-a715-ba225aa94a5c",
+      "status": "rendered",
+      "steps": 8,
+      "log": [
+        "plan: 4 clips, ~22.6s",
+        "01 plan   select_clip: ok",
+        "02 plan   select_clip: ok",
+        "03 plan   select_clip: ok",
+        "04 plan   select_clip: ok",
+        "05 plan   apply_style: ok",
+        "06 plan   generate_captions: ok",
+        "repair #1: duration 32.66s outside target 20-25s -> ['trim_clip']",
+        "07 repair trim_clip: ok",
+        "repair #2: duration 27.16s outside target 20-25s -> ['trim_clip']",
+        "08 repair trim_clip: ok",
+        "render v8: 21.70s"
+      ],
+      "rejected": 0,
+      "repairs": 2,
+      "fixups": 0,
+      "trace_id": "2181974b-7d60-49e5-9017-684eeea3d14b",
+      "error": null,
+      "judge_errors": 0,
+      "render_id": "deeba4ee-dd1f-4e24-8717-b7312bc150b6",
+      "evaluation_id": "21aea154-848e-4736-a155-93b3fcf4cc14",
+      "gate": true,
+      "pass_rate": 0.72,
+      "failed": [
+        "instruction.preference_satisfaction",
+        "narrative.structure",
+        "style.caption_match",
+        "style.color_similarity",
+        "style.shot_length_similarity",
+        "temporal.cut_through_word",
+        "temporal.dialogue_continuity"
+      ],
+      "by_category": {
+        "style": {
+          "rate": 0.0,
+          "total": 3,
+          "passed": 0
+        },
+        "visual": {
+          "rate": 1.0,
+          "total": 1,
+          "passed": 1
+        },
+        "captions": {
+          "rate": 1.0,
+          "total": 3,
+          "passed": 3
+        },
+        "temporal": {
+          "rate": 0.6,
+          "total": 5,
+          "passed": 3
+        },
+        "narrative": {
+          "rate": 0.0,
+          "total": 1,
+          "passed": 0
+        },
+        "technical": {
+          "rate": 1.0,
+          "total": 10,
+          "passed": 10
+        },
+        "instruction": {
+          "rate": 0.5,
+          "total": 2,
+          "passed": 1
+        }
+      },
+      "checks": {
+        "captions.accuracy": true,
+        "captions.present": null,
+        "captions.speech_coverage": true,
+        "captions.sync": true,
+        "instruction.adherence": true,
+        "instruction.preference_satisfaction": false,
+        "narrative.structure": false,
+        "style.caption_match": false,
+        "style.color_similarity": false,
+        "style.shot_length_similarity": false,
+        "technical.aspect_ratio": true,
+        "technical.audio_present": true,
+        "technical.av_stream_alignment": true,
+        "technical.black_frames": true,
+        "technical.duration_in_range": true,
+        "technical.file_valid": true,
+        "technical.frozen_frames": true,
+        "technical.loudness": true,
+        "technical.missing_media": true,
+        "technical.resolution": true,
+        "temporal.cut_through_word": false,
+        "temporal.dead_air": true,
+        "temporal.dialogue_continuity": false,
+        "temporal.repeated_footage": true,
+        "temporal.shot_durations": true,
+        "visual.framing": true
+      },
+      "scores": {
+        "captions.accuracy": 0.943,
+        "captions.speech_coverage": 0.956,
+        "instruction.adherence": 1.0,
+        "instruction.preference_satisfaction": 0.667,
+        "narrative.structure": 0.4,
+        "style.color_similarity": 0.119,
+        "style.shot_length_similarity": 0.418
+      },
+      "duration": 21.7,
+      "seconds": 46.7
+    }
+  ],
+  "summary": {
+    "tasks": 24,
+    "completed": 23,
+    "completion_rate": 0.958,
+    "technical_valid_rate": 0.958,
+    "mean_pass_rate": 0.81,
+    "mean_actions": 8.3,
+    "repairs_per_task": 2.43,
+    "check_pass_rates": {
+      "captions.accuracy": 0.957,
+      "captions.present": 1.0,
+      "captions.speech_coverage": 1.0,
+      "captions.sync": 1.0,
+      "instruction.adherence": 0.739,
+      "instruction.must_exclude": 1.0,
+      "instruction.must_include": 1.0,
+      "instruction.preference_satisfaction": 0.652,
+      "narrative.structure": 0.043,
+      "style.caption_match": 0.0,
+      "style.color_similarity": 0.5,
+      "style.shot_length_similarity": 0.0,
+      "technical.aspect_ratio": 1.0,
+      "technical.audio_present": 1.0,
+      "technical.av_stream_alignment": 1.0,
+      "technical.black_frames": 0.826,
+      "technical.duration_in_range": 1.0,
+      "technical.file_valid": 1.0,
+      "technical.frozen_frames": 1.0,
+      "technical.loudness": 1.0,
+      "technical.missing_media": 1.0,
+      "technical.resolution": 1.0,
+      "temporal.cut_through_word": 0.522,
+      "temporal.dead_air": 1.0,
+      "temporal.dialogue_continuity": 0.13,
+      "temporal.repeated_footage": 0.87,
+      "temporal.shot_durations": 0.522,
+      "visual.framing": 0.739
+    },
+    "by_task_category": {
+      "audio_captions": 0.859,
+      "instruction_following": 0.811,
+      "pacing_scene_selection": 0.82,
+      "personalization": 0.818,
+      "reference_style": 0.74
+    }
+  },
+  "finished": "2026-11-22T08:11:27+00:00",
+  "langsmith_experiment": "editing-agent-0.2+d43dbd596cae-265c9c60"
+}
