@@ -50,10 +50,43 @@ Propose ONE candidate that addresses the highest-impact root causes. Rules:
 - Keep prompt additions short, concrete and testable (numbers, not adjectives). Do not repeat existing rules.
 - Change only what the diagnoses justify: every change must map to a cited root cause.
 - Do not try to fix failures that the diagnosis attributes to the evaluator itself.
-- target_checks must be check ids from the diagnoses."""
+- target_checks must be check ids from the diagnoses.
+- If previous experiments were rejected, address WHY (e.g. tasks that stopped rendering) instead of
+  re-proposing the same change."""
 
 
-def propose(diagnoses: list[dict], base: AgentConfig, model=None) -> CandidateProposal:
+def experiment_history(s, baseline_version: str) -> list[dict]:
+    """Earlier experiments against the same baseline: what was tried and what the gates said.
+    Development/validation outcomes only (never the holdout assessment)."""
+    import json
+    from pathlib import Path
+
+    from sqlalchemy import select
+
+    from db.models import Experiment
+
+    out = []
+    for e in s.scalars(select(Experiment).where(Experiment.baseline_version == baseline_version,
+                                                Experiment.gates.isnot(None)).order_by(Experiment.created_at)):
+        why_failed = {}
+        if e.candidate_run and Path(e.candidate_run).exists():
+            for r in json.loads(Path(e.candidate_run).read_text())["results"]:
+                if r["task"] in (e.comparison or {}).get("newly_failed", []):
+                    why_failed[r["task"]] = {"error": r.get("error"), "log_tail": (r.get("log") or [])[-8:]}
+        g = e.gates
+        out.append({"candidate": e.candidate_version, "status": e.status,
+                    "policy_changes": e.change.get("policy_changes"),
+                    "planner_addendum": e.change.get("planner_addendum"),
+                    "targets": e.change.get("targets"), "critical": g.get("critical"),
+                    "regressions": g.get("regressions"), "improvements": g.get("improvements"), "notes": g.get("notes"),
+                    "check_deltas": {k: v["delta"] for k, v in (e.comparison or {}).get("checks", {}).items()
+                                     if v["delta"] not in (None, 0)},
+                    "tasks_that_stopped_rendering": why_failed})
+    return out
+
+
+def propose(diagnoses: list[dict], base: AgentConfig, model=None, history: list[dict] | None = None
+            ) -> CandidateProposal:
     if model is None:
         from config.models import get_chat_model
 
@@ -66,7 +99,10 @@ def propose(diagnoses: list[dict], base: AgentConfig, model=None) -> CandidatePr
                      + "\n\nCURRENT PROMPT ADDITIONS:\n" + json.dumps({"planner": base.planner_addendum,
                                                                        "repair": base.repair_addendum})
                      + "\n\nDIAGNOSED FAILURE PATTERNS (highest impact first):\n"
-                     + json.dumps(diagnoses, indent=1, default=str)[:30000]),
+                     + json.dumps(diagnoses, indent=1, default=str)[:30000]
+                     + "\n\nPREVIOUS EXPERIMENTS AGAINST THIS BASELINE (learn from them; do not repeat a "
+                       "rejected configuration):\n" + (json.dumps(history, indent=1, default=str)[:12000]
+                                                         if history else "(none)")),
     ])
 
 

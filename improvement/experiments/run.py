@@ -18,7 +18,8 @@ EXPERIMENTS = RESULTS / "experiments"
 
 
 def comparable(run: dict, version: str, splits: list[str], n_tasks: int) -> bool:
-    return (run.get("agent_version") == version and run.get("evaluator_version") == EVALUATOR_VERSION
+    return (run.get("creator_isolation") is True  # runs from before isolation saw a demo creator's memory
+            and run.get("agent_version") == version and run.get("evaluator_version") == EVALUATOR_VERSION
             and run.get("dataset_version") == dataset_version() and sorted(run.get("splits", [])) == sorted(splits)
             and run.get("models", {}).get("planner") == model_id("planner")
             and run.get("models", {}).get("judge") == model_id("judge")

@@ -159,7 +159,9 @@ def propose_node(state: ImproveState, config) -> ImproveState:
     deps = _deps(config)
     with session_scope() as s:
         base = registry.get(s, state["baseline_version"])
-        p = propose(state["diagnoses"], base, deps.model)
+        from improvement.candidates.generate import experiment_history
+
+        p = propose(state["diagnoses"], base, deps.model, experiment_history(s, base.version))
         cfg, change = build_candidate(base, p, {d["check"] for d in state["diagnoses"]}, release=_bump(base.release))
         registry.register(s, cfg, parent=base.version, origin="improver", rationale=p.hypothesis)
         exp = Experiment(name=f"{base.version} vs {cfg.version}", analysis_id=uuid.UUID(state["analysis_id"]),

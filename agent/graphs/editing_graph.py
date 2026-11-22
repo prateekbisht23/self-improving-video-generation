@@ -199,7 +199,10 @@ def _skip_captions(deps: EditDeps, state: EditState) -> bool:
 
 def _snap_args(tl: Timeline, act: Action, deps: EditDeps) -> dict:
     """Policy snap_cuts: move the in/out points of select_clip / trim_clip to speech boundaries."""
-    mode = deps.config.policy.snap_cuts
+    pol = deps.config.policy
+    mode = pol.snap_cuts
+    if act.get("source") in ("repair", "fixup") and mode != "off" and pol.snap_repairs != "same":
+        mode = pol.snap_repairs
     args = dict(act["args"])
     if mode == "off" or act["name"] not in ("select_clip", "trim_clip"):
         return args
@@ -423,7 +426,10 @@ def build_graph():
     g.add_edge("fixup", "next_action")
     g.add_edge("render", END)
     g.add_edge("fail", END)
-    return g.compile()
+    # checkpointer=False: never inherit a parent graph's checkpointer. When this graph runs inside a
+    # node of a checkpointed graph (the improvement loop), LangGraph would otherwise treat it as a
+    # subgraph and, on resume, REPLAY earlier results by call position for different inputs.
+    return g.compile(checkpointer=False)
 
 
 def agent_config(cfg: AgentConfig = DEFAULT_CONFIG) -> dict[str, Any]:

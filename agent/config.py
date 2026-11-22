@@ -31,6 +31,9 @@ class AgentPolicy(BaseModel):
     snap_max_shift: float = Field(
         default=2.0, ge=0.5, le=8.0, description="sentence snapping: max seconds an edge may move to reach a "
                                                  "sentence boundary before falling back to the nearest word gap")
+    snap_repairs: Literal["same", "word", "off"] = Field(
+        default="same", description="snapping for repair/fixup actions: 'same' as snap_cuts, or only 'word' gaps "
+                                    "(small moves, so precise duration repairs are not undone by sentence snapping)")
     fixup_extend: bool = Field(
         default=False, description="when the edit is too SHORT after repairs, the deterministic fixup extends "
                                    "clips to the next sentence end / adds unused speech scenes (v0.2 only trims)")

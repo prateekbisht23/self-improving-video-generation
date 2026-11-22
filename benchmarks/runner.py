@@ -54,7 +54,7 @@ def benchmark_assets() -> tuple[uuid.UUID, dict[str, uuid.UUID]]:
 
 # ------------------------------------------------------------------ personalization
 def seed_creator(task: BenchmarkTask) -> uuid.UUID:
-    """A fresh creator per personalization task, holding the task's preferences as explicit memory.
+    """A dedicated creator per task, holding exactly the task's preferences (maybe none) as explicit memory.
     Retrieval (context filter + conflict resolution) then runs exactly as for a real creator."""
     from db.models import CreatorPreference, User
     from memory.storage import add_explicit
@@ -86,7 +86,9 @@ def run_task(task: BenchmarkTask, *, judges: bool = True, agent_version: str | N
     t0 = time.perf_counter()
     if task.reference:
         ensure_style_profile(assets[task.reference])
-    creator_id = seed_creator(task) if task.preferences else None
+    # every task runs as its own benchmark creator holding ONLY the task's preferences (possibly none),
+    # so memory of real creators (e.g. a demo) can never leak into benchmark results
+    creator_id = seed_creator(task)
     with session_scope() as s:
         e = EditingSession(project_id=project_id, instructions=task.instructions, creator_id=creator_id,
                            agent_version=agent_version,
@@ -229,8 +231,9 @@ def log_experiment(run: dict, tasks: list[BenchmarkTask]) -> str | None:
 
     def judged(outputs: dict) -> list[dict]:
         sc = outputs.get("scores") or {}
-        return [{"key": k.replace(".", "_"), "score": v} for k, v in sc.items()
-                if k in ("instruction.adherence", "narrative.structure", "captions.accuracy")]
+        out = [{"key": k.replace(".", "_"), "score": v} for k, v in sc.items()
+               if k in ("instruction.adherence", "narrative.structure", "captions.accuracy")]
+        return out or {"key": "judged", "score": 0}  # unrendered task: LangSmith rejects an empty list
 
     res = c.evaluate(target, data=examples, evaluators=[gate, pass_rate, completed, repairs, judged],
                      experiment_prefix=run["agent_version"], max_concurrency=0,
@@ -329,6 +332,7 @@ def run_benchmark(tasks: list[BenchmarkTask], *, splits: list[str], agent_versio
         run = {"run_id": path.stem if path else rid, "agent_version": version,
                "evaluator_version": EVALUATOR_VERSION,
                "dataset_version": dataset_version(), "splits": splits, "judges": judges,
+               "creator_isolation": True,
                "models": {r: model_id(r) for r in ("planner", "vision", "judge", "embeddings")},
                "started": datetime.now(UTC).isoformat(timespec="seconds"), "results": []}
         path = path or RESULTS / f"{rid}.json"
@@ -354,6 +358,17 @@ def run_benchmark(tasks: list[BenchmarkTask], *, splits: list[str], agent_versio
               f"repairs={r.get('repairs')} {r['seconds']}s failed={r.get('failed')}", flush=True)
         run["summary"] = summarize(run["results"])
         path.write_text(json.dumps(run, indent=2))
+    # transient provider errors (503 "high demand", timeouts) are not agent failures: retry once at the end
+    for t in tasks:
+        r = next((x for x in run["results"] if x["task"] == t.id), None)
+        if r and r.get("status") == "error" and not r.get("daily_quota"):
+            print(f"retrying {t.id} after error: {r['error'][:120]}", flush=True)
+            run["results"] = [x for x in run["results"] if x["task"] != t.id] + [
+                run_task(t, judges=judges, agent_version=version)]
+            if run["results"][-1].get("daily_quota"):
+                path.write_text(json.dumps(run, indent=2))
+                raise QuotaExhausted(path, t.id)
+            path.write_text(json.dumps(run, indent=2))
     run["summary"] = summarize(run["results"])
     run["finished"] = datetime.now(UTC).isoformat(timespec="seconds")
     if langsmith and not run.get("langsmith_experiment"):

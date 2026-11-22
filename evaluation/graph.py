@@ -110,7 +110,10 @@ def build_graph():
         g.add_edge("extract_features", name)
         g.add_edge(name, "aggregate")
     g.add_edge("aggregate", END)
-    return g.compile()
+    # checkpointer=False: never inherit a parent graph's checkpointer. When this graph runs inside a
+    # node of a checkpointed graph (the improvement loop), LangGraph would otherwise treat it as a
+    # subgraph and, on resume, REPLAY earlier results by call position for different inputs.
+    return g.compile(checkpointer=False)
 
 
 def evaluate(x: EvalInput, *, judges_on: bool = True, transcribe: bool = True, workdir: str | None = None,

@@ -207,3 +207,14 @@ def test_api_exposes_experiments_and_refuses_premature_decisions(client, deps):
         s.scalar(select(Experiment)).status = "rejected"
     r = client.post(f"/improvement/experiments/{exps[0]['id']}/decision", json={"decision": "approve", "by": "x"})
     assert r.status_code == 409
+
+
+def test_second_round_sees_why_the_first_candidate_was_rejected(deps):
+    d, g = deps(improve_cut=False), ig.build_graph(InMemorySaver())
+    first = ig.start(deps=d, g=g)
+    assert first["status"] == "rejected"
+    ig.start(deps=d, g=g)
+    propose_prompts = [m[1].content for name, m in d.model.calls if name == "CandidateProposal"]
+    assert "(none)" in propose_prompts[0].split("PREVIOUS EXPERIMENTS")[1]
+    history = propose_prompts[1].split("PREVIOUS EXPERIMENTS")[1]
+    assert first["candidate_version"] in history and "regressions" in history

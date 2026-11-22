@@ -146,3 +146,55 @@ def test_prompt_addendum_reaches_the_planner(monkeypatch, synthetic, tmp_path):
     eg.run_edit("teaser", deps, min_duration=8, max_duration=15)
     assert "End on a complete sentence." in fake.calls[0][1][0].content
     assert deps.config.version in eg.agent_config(deps.config)["agent_version"]
+
+
+def test_editing_graph_is_not_replayed_inside_a_resumed_checkpointed_graph(monkeypatch, synthetic, tmp_path):
+    """Regression: run inside a checkpointed parent that crashes and resumes, the editing graph must
+    run again on the new input instead of replaying the earlier call's result."""
+    from typing import TypedDict
+
+    from langgraph.checkpoint.memory import InMemorySaver
+    from langgraph.graph import END, START, StateGraph
+
+    monkeypatch.setattr(eg, "get_chat_model", lambda role, **_: fake)
+    fake = FakeModel(make_plan([("S1", 0, 5.0), ("S4", 8, 12)]))
+    attempt = {"n": 0}
+
+    class P(TypedDict):
+        out: list
+
+    def work(state):
+        outs = []
+        for instr in (["first", "second"] if attempt["n"] == 0 else ["third"]):
+            rec = InMemoryRecorder(out_dir=tmp_path, do_render=False)
+            outs.append(eg.run_edit(instr, EditDeps(ctx=synthetic_context(synthetic), recorder=rec),
+                                    min_duration=8, max_duration=15)["instructions"])
+            if attempt["n"] == 0 and instr == "second":
+                attempt["n"] += 1
+                raise RuntimeError("crash")
+        return {"out": outs}
+
+    g = StateGraph(P)
+    g.add_node("work", work)
+    g.add_edge(START, "work")
+    g.add_edge("work", END)
+    parent, cfg = g.compile(checkpointer=InMemorySaver()), {"configurable": {"thread_id": "t"}}
+    with pytest.raises(RuntimeError):
+        parent.invoke({"out": []}, cfg)
+    assert parent.invoke(None, cfg)["out"] == ["third"]
+
+
+def test_snap_repairs_word_keeps_repair_trims_close_to_what_was_asked(monkeypatch, synthetic, tmp_path):
+    from agent.config import AgentConfig, AgentPolicy
+
+    deps = EditDeps(ctx=synthetic_context(synthetic), recorder=InMemoryRecorder(out_dir=tmp_path, do_render=False))
+    tl = eg.Timeline(assets=deps.ctx.assets, output=eg.OutputSpec(min_duration=8, max_duration=15))
+    from editing.operations import apply_action
+
+    tl = apply_action(tl, "select_clip", {"scene_id": "S1", "src_in": 0, "src_out": 9.9}, deps.ctx).timeline
+    act = {"name": "trim_clip", "args": {"index": 0, "src_out": 3.1}, "source": "repair"}
+    deps.config = AgentConfig(policy=AgentPolicy(snap_cuts="sentence"))
+    assert eg._snap_args(tl, act, deps)["src_out"] == pytest.approx(4.0)       # sentence end, +0.9s
+    deps.config = AgentConfig(policy=AgentPolicy(snap_cuts="sentence", snap_repairs="word"))
+    assert abs(eg._snap_args(tl, act, deps)["src_out"] - 3.1) < 0.25          # nearest word gap
+    assert eg._snap_args(tl, {**act, "source": "plan"}, deps)["src_out"] == pytest.approx(4.0)
