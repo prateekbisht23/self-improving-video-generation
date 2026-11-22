@@ -99,3 +99,14 @@ def enqueue_edit(session_id: uuid.UUID) -> str:
 
 def enqueue_render(version_id: uuid.UUID) -> str:
     return _enqueue(render_job, str(version_id), description=f"render timeline version {version_id}")
+
+
+def evaluation_job(render_id: str) -> dict:
+    from services.worker.evaluation import evaluate_render
+
+    return evaluate_render(render_id)
+
+
+def enqueue_evaluation(render_id: uuid.UUID | str) -> str:
+    # Separate job (and separate graph) from editing: the evaluator never runs inside the agent.
+    return _enqueue(evaluation_job, str(render_id), description=f"evaluate render {render_id}")

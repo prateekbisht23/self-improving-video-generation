@@ -1,0 +1,21 @@
+id: ac-02
+version: 1
+category: audio_captions
+split: development
+sources:
+- nasa_supermoon
+reference: null
+instructions: Make a 15-20 second clip with captions near the top of the frame in ALL CAPS.
+preferences: []
+constraints:
+  min_duration: 15
+  max_duration: 20
+  aspect_ratio: '9:16'
+  captions_required: true
+  must_include: []
+  must_exclude: []
+expected_checks:
+- technical.duration_in_range
+- technical.aspect_ratio
+- captions.accuracy
+- captions.sync

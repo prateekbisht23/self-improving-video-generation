@@ -37,6 +37,11 @@ curl -X POST localhost:8010/projects/<project_id>/edits -H 'content-type: applic
   -d '{"instructions":"20-25s teaser that opens with the launch news, with captions","min_duration":20,"max_duration":25}'
 curl localhost:8010/edits/<edit_id>                           # plan, actions, versions, renders, trace_id
 curl -o edit.mp4 localhost:8010/renders/<render_id>/video
+curl localhost:8010/edits/<edit_id>/evaluations              # independent evaluation (auto after render)
+
+# benchmark (needs a "Benchmark v1" project with samples/*.mp4 uploaded and processed)
+uv run python -m benchmarks.runner --split development validation
+uv run python -m benchmarks.runner --split holdout --allow-holdout   # final assessment only
 
 # standalone (no DB) analysis + first graph
 uv run python -m perception.context samples/nasa_interview.mp4 -o out/nasa_interview.json
@@ -52,7 +57,7 @@ Sample footage credits: see [`samples/manifest.yaml`](samples/manifest.yaml).
 | 0 | Foundation & technical spike | done |
 | 1 | Multimodal media intelligence | done |
 | 2 | Editing agent & FFmpeg renderer | done |
-| 3 | Independent evaluation engine | planned |
+| 3 | Independent evaluation engine | done |
 | 4 | Creator memory & predictive editing | planned |
 | 5 | Failure diagnosis & self-improvement | planned |
 | 6 | Frontend, integration & demo | planned |

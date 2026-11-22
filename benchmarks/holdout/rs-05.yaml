@@ -1,0 +1,20 @@
+id: rs-05
+version: 1
+category: reference_style
+split: holdout
+sources:
+- niosh_epidemiologist
+reference: libreoffice_interview
+instructions: Make a 20-25 second clip in the visual and pacing style of the reference.
+preferences: []
+constraints:
+  min_duration: 20
+  max_duration: 25
+  aspect_ratio: '9:16'
+  captions_required: null
+  must_include: []
+  must_exclude: []
+expected_checks:
+- technical.duration_in_range
+- technical.aspect_ratio
+- style.shot_length_similarity

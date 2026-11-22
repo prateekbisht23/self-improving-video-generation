@@ -35,6 +35,7 @@ class Settings(BaseSettings):
     # pipeline switches (tests turn off the paid/slow stages)
     pipeline_vision: bool = True
     pipeline_embeddings: bool = True
+    auto_evaluate: bool = True  # evaluate every agent render in a separate job
     rq_sync: bool = False  # run jobs inline instead of via a worker (tests/debugging)
 
 

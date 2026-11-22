@@ -1,0 +1,21 @@
+id: ac-04
+version: 1
+category: audio_captions
+split: validation
+sources:
+- nasa_interview
+reference: null
+instructions: 18-22 second clip with captions; never cut in the middle of a word.
+preferences: []
+constraints:
+  min_duration: 18
+  max_duration: 22
+  aspect_ratio: '9:16'
+  captions_required: true
+  must_include: []
+  must_exclude: []
+expected_checks:
+- technical.duration_in_range
+- technical.aspect_ratio
+- temporal.cut_through_word
+- captions.sync

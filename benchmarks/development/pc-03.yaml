@@ -1,0 +1,22 @@
+id: pc-03
+version: 1
+category: pacing_scene_selection
+split: development
+sources:
+- nasa_lightning
+reference: null
+instructions: Pick the 3 most dramatic lightning moments and build a 15-20 second teaser around them, keeping the
+  narration coherent.
+preferences: []
+constraints:
+  min_duration: 15
+  max_duration: 20
+  aspect_ratio: '9:16'
+  captions_required: null
+  must_include: []
+  must_exclude: []
+expected_checks:
+- technical.duration_in_range
+- technical.aspect_ratio
+- narrative.structure
+- temporal.dialogue_continuity

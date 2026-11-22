@@ -22,3 +22,17 @@ clips:
     attribution: '"NASA ScienceCasts: Lightning Across the Solar System" by ScienceAtNASA, CC BY 3.0, via Wikimedia Commons'
     style: narrated explainer with b-roll (reference-style candidate)
     max_seconds: 120
+  - id: niosh_epidemiologist
+    url: https://upload.wikimedia.org/wikipedia/commons/7/7b/Science_Speaks_-_Talking_to_Women_in_Science_%28Liz%2C_Epidemiologist%29.webm
+    source: https://commons.wikimedia.org/wiki/File:Science_Speaks_-_Talking_to_Women_in_Science_(Liz,_Epidemiologist).webm
+    license: Public domain (US government work, NIOSH/CDC)
+    attribution: National Institute for Occupational Safety and Health (NIOSH)
+    style: single-speaker career interview
+    max_seconds: 120
+  - id: libreoffice_interview
+    url: https://upload.wikimedia.org/wikipedia/commons/f/f5/LibreOffice_interview_-_Michael_Meeks.webm
+    source: https://commons.wikimedia.org/wiki/File:LibreOffice_interview_-_Michael_Meeks.webm
+    license: CC BY 3.0 (https://creativecommons.org/licenses/by/3.0)
+    attribution: '"LibreOffice interview: Michael Meeks" by LibreOffice - The Document Foundation, CC BY 3.0, via Wikimedia Commons'
+    style: developer interview (different speaker, accent and setting)
+    max_seconds: 120

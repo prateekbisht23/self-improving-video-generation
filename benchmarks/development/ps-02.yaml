@@ -1,0 +1,24 @@
+id: ps-02
+version: 1
+category: personalization
+split: development
+sources:
+- nasa_supermoon
+reference: null
+instructions: Make a teaser about the supermoon trilogy.
+preferences:
+- Keep my videos under 20 seconds
+- I like hard cuts, never fades
+- Open with a question if one is asked
+constraints:
+  min_duration: 12
+  max_duration: 20
+  aspect_ratio: '9:16'
+  captions_required: null
+  must_include: []
+  must_exclude: []
+expected_checks:
+- technical.duration_in_range
+- technical.aspect_ratio
+- technical.duration_in_range
+- instruction.adherence

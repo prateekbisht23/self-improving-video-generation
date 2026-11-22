@@ -167,7 +167,8 @@ def run_editing_session(session_id: str) -> dict:
         ctx = load_edit_context(s, asset_ids, project_id)
     try:
         style = ensure_style_profile(ref_id) if ref_id else None
-        deps = EditDeps(ctx=ctx, recorder=DbRecorder(sid), style=style)
+        deps = EditDeps(ctx=ctx, recorder=DbRecorder(sid), style=style,
+                        memory=list(c.get("preferences", [])))  # Phase 4 replaces with the memory store
         run_id = uuid.uuid4()  # we choose the root run id, so the DB row links to the exact trace
         with session_scope() as s:
             s.get(EditingSession, sid).trace_id = str(run_id)
@@ -187,5 +188,10 @@ def run_editing_session(session_id: str) -> dict:
             sess.status = SessionStatus.failed
             sess.error = "; ".join(final.get("problems") or []) or final.get("last_error") or "agent did not finish"
         steps = s.scalar(select(func.count()).select_from(AgentAction).where(AgentAction.session_id == sid))
+    render_id = (final.get("render") or {}).get("render_id")
+    if render_id and get_settings().auto_evaluate:
+        from services.worker.jobs import enqueue_evaluation
+
+        enqueue_evaluation(render_id)
     return {"status": final.get("status"), "version": final.get("version"), "steps": steps,
-            "log": final.get("log", [])}
+            "render_id": render_id, "log": final.get("log", [])}

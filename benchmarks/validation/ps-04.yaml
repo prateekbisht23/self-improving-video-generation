@@ -1,0 +1,23 @@
+id: ps-04
+version: 1
+category: personalization
+split: validation
+sources:
+- nasa_interview
+reference: null
+instructions: Turn this into a short for my channel.
+preferences:
+- I always want captions, bottom of the frame
+- I prefer a warm colour look
+- No title cards in my videos
+constraints:
+  min_duration: 15
+  max_duration: 25
+  aspect_ratio: '9:16'
+  captions_required: null
+  must_include: []
+  must_exclude: []
+expected_checks:
+- technical.duration_in_range
+- technical.aspect_ratio
+- captions.present

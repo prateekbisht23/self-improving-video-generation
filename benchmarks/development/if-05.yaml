@@ -1,0 +1,24 @@
+id: if-05
+version: 1
+category: instruction_following
+split: development
+sources:
+- nasa_interview
+- nasa_supermoon
+reference: null
+instructions: 'Combine both videos into one 25-30 second ''NASA this week'' short: first the Europa Clipper launch,
+  then the supermoon trilogy. Keep that order. Add captions.'
+preferences: []
+constraints:
+  min_duration: 25
+  max_duration: 30
+  aspect_ratio: '9:16'
+  captions_required: true
+  must_include:
+  - europa
+  must_exclude: []
+expected_checks:
+- technical.duration_in_range
+- technical.aspect_ratio
+- instruction.adherence
+- narrative.structure

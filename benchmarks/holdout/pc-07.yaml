@@ -1,0 +1,20 @@
+id: pc-07
+version: 1
+category: pacing_scene_selection
+split: holdout
+sources:
+- libreoffice_interview
+reference: null
+instructions: 15-20 second punchy cut with clips of 3-5 seconds each, no long monologue shots.
+preferences: []
+constraints:
+  min_duration: 15
+  max_duration: 20
+  aspect_ratio: '9:16'
+  captions_required: null
+  must_include: []
+  must_exclude: []
+expected_checks:
+- technical.duration_in_range
+- technical.aspect_ratio
+- temporal.shot_durations

@@ -1,0 +1,24 @@
+id: ps-05
+version: 1
+category: personalization
+split: holdout
+sources:
+- niosh_epidemiologist
+reference: null
+instructions: Make a short about her path into science.
+preferences:
+- Keep my videos under 20 seconds
+- I like hard cuts, never fades
+- Open with a question if one is asked
+constraints:
+  min_duration: 15
+  max_duration: 25
+  aspect_ratio: '9:16'
+  captions_required: null
+  must_include: []
+  must_exclude: []
+expected_checks:
+- technical.duration_in_range
+- technical.aspect_ratio
+- technical.duration_in_range
+- instruction.adherence

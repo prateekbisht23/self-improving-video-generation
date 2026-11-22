@@ -27,6 +27,7 @@ dependencies = [
   "langchain-google-genai>=4.5.2",
   "pgvector>=0.5.1",
   "python-multipart>=0.0.34",
+  "jiwer>=4.0.0",
 ]
 
 [project.optional-dependencies]

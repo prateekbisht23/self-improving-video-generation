@@ -1,0 +1,25 @@
+id: if-02
+version: 1
+category: instruction_following
+split: development
+sources:
+- nasa_interview
+reference: null
+instructions: Create a 15-20 second clip that only explains why Europa is a unique place. Do not include the launch
+  announcement.
+preferences: []
+constraints:
+  min_duration: 15
+  max_duration: 20
+  aspect_ratio: '9:16'
+  captions_required: null
+  must_include:
+  - unique place
+  must_exclude:
+  - launching tomorrow
+expected_checks:
+- technical.duration_in_range
+- technical.aspect_ratio
+- instruction.adherence
+- instruction.must_include
+- instruction.must_exclude

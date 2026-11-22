@@ -12,6 +12,7 @@ from db.models import (
     AssetKind,
     AssetStatus,
     EditingSession,
+    Evaluation,
     MediaAsset,
     Render,
     RenderStatus,
@@ -25,7 +26,7 @@ from editing.timeline.schema import Timeline
 from services.api.routes.projects import get_project
 from services.api.schemas import EditCreate, EditDetail, EditOut, ManualAction, VersionOut
 from services.worker.editing import ensure_style_profile, load_edit_context
-from services.worker.jobs import enqueue_edit, enqueue_render
+from services.worker.jobs import enqueue_edit, enqueue_evaluation, enqueue_render
 
 router = APIRouter(tags=["edits"])
 
@@ -164,3 +165,35 @@ def read_style_profile(asset_id: uuid.UUID, db: Session = Depends(get_db)):
     if p is None:
         raise HTTPException(404, "no style profile yet; POST to build one")
     return p.profile
+
+
+@router.post("/renders/{render_id}/evaluate", status_code=202)
+def evaluate_render(render_id: uuid.UUID, db: Session = Depends(get_db)):
+    r = db.get(Render, render_id)
+    if r is None or r.status != RenderStatus.done:
+        raise HTTPException(404, "render not found or not finished")
+    return {"render_id": render_id, "job": enqueue_evaluation(render_id)}
+
+
+def _eval_summary(ev: Evaluation) -> dict:
+    return {"id": ev.id, "render_id": ev.render_id, "version": ev.timeline_version.version,
+            "evaluator_version": ev.evaluator_version, "judge_model": ev.judge_model,
+            "technical_gate_passed": ev.technical_gate_passed, "pass_rate": ev.pass_rate,
+            "by_category": ev.by_category, "failed": ev.report.get("failed", []), "trace_id": ev.trace_id,
+            "created_at": ev.created_at}
+
+
+@router.get("/edits/{session_id}/evaluations")
+def list_evaluations(session_id: uuid.UUID, db: Session = Depends(get_db)):
+    _session(session_id, db)
+    evs = db.scalars(select(Evaluation).where(Evaluation.session_id == session_id)
+                     .order_by(Evaluation.created_at)).all()
+    return [_eval_summary(ev) for ev in evs]
+
+
+@router.get("/evaluations/{evaluation_id}")
+def read_evaluation(evaluation_id: uuid.UUID, db: Session = Depends(get_db)):
+    ev = db.get(Evaluation, evaluation_id)
+    if ev is None:
+        raise HTTPException(404, "evaluation not found")
+    return _eval_summary(ev) | {"report": ev.report}

@@ -1,0 +1,24 @@
+id: if-01
+version: 1
+category: instruction_following
+split: development
+sources:
+- nasa_interview
+reference: null
+instructions: Make a 20-25 second vertical teaser that opens with the news that Europa Clipper is launching tomorrow.
+  Add captions and a short title.
+preferences: []
+constraints:
+  min_duration: 20
+  max_duration: 25
+  aspect_ratio: '9:16'
+  captions_required: true
+  must_include:
+  - launching tomorrow
+  must_exclude: []
+expected_checks:
+- technical.duration_in_range
+- technical.aspect_ratio
+- instruction.adherence
+- instruction.must_include
+- captions.present

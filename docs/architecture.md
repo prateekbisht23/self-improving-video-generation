@@ -47,3 +47,19 @@ Invariants added:
 - every timeline change is a new immutable version;
 - every attempted action is logged, including rejected ones;
 - a session stores its agent version (prompt hash), model ids, plan and LangSmith `trace_id`.
+
+## Phase 3 additions
+```
+render ─► enqueue_evaluation (separate RQ job) ─► evaluation graph (LangGraph, parallel branches)
+            extract_features(render file: probe, black/freeze/silence, loudness, cuts, ASR of output, frames)
+            ├ technical ├ temporal ├ captions ├ style ├ required_content ├ judge ×3 (judge model)
+            └► aggregate ─► evaluations (+ report JSON) and evaluation_issues (one row per failed check)
+
+benchmarks/{development,validation,holdout}/*.yaml ─► benchmarks/runner.py
+            per task: editing session ─► render ─► evaluation ─► results/<run>.json + .md
+            ─► LangSmith dataset `sivg-bench` + one experiment per run (prefix = agent version)
+```
+Invariants added:
+- `evaluation/` never imports the agent (enforced by a test);
+- holdout tasks load only with `allow_holdout=True`;
+- every report records evaluator version, judge model and timeline hash.

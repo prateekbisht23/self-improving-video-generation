@@ -1,0 +1,15 @@
+{
+  "source_run": "20261122T051352-dev-val",
+  "checks_compared": 510,
+  "agreement": 0.988,
+  "non_model_agreement": 1.0,
+  "model_agreement": 0.913,
+  "flips": [
+    "ac-02 visual.framing: False -> True",
+    "pc-03 visual.framing: True -> False",
+    "ps-02 visual.framing: True -> False",
+    "rs-02 visual.framing: False -> True",
+    "pc-05 visual.framing: True -> False",
+    "rs-04 visual.framing: True -> False"
+  ]
+}

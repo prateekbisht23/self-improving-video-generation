@@ -290,3 +290,45 @@ class StyleProfile(Base):
     version: Mapped[str] = mapped_column(String(32))  # extractor version
     profile: Mapped[dict]
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+# ============================================================ Phase 3: evaluation
+class Evaluation(Base):
+    """One independent evaluation of one render (FR-09). Linked to its timeline version."""
+
+    __tablename__ = "evaluations"
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    render_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("renders.id", ondelete="CASCADE"), index=True)
+    timeline_version_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("timeline_versions.id", ondelete="CASCADE"),
+                                                           index=True)
+    session_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("editing_sessions.id", ondelete="CASCADE"), index=True)
+    evaluator_version: Mapped[str] = mapped_column(String(32))
+    judge_model: Mapped[str | None] = mapped_column(String(128))
+    technical_gate_passed: Mapped[bool]
+    pass_rate: Mapped[float]
+    by_category: Mapped[dict]
+    report: Mapped[dict]
+    trace_id: Mapped[str | None] = mapped_column(String(64))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+    issues: Mapped[list["EvaluationIssue"]] = relationship(back_populates="evaluation", cascade="all, delete-orphan")
+    timeline_version: Mapped[TimelineVersion] = relationship()
+
+
+class EvaluationIssue(Base):
+    """A failed check, one row each — the raw material for failure clustering (Phase 5)."""
+
+    __tablename__ = "evaluation_issues"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    evaluation_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("evaluations.id", ondelete="CASCADE"), index=True)
+    check_id: Mapped[str] = mapped_column(String(64), index=True)
+    category: Mapped[str] = mapped_column(String(32))
+    kind: Mapped[str] = mapped_column(String(16))
+    severity: Mapped[str] = mapped_column(String(16))
+    message: Mapped[str] = mapped_column(Text)
+    explanation: Mapped[str | None] = mapped_column(Text)
+    evidence: Mapped[list | None] = mapped_column(JSONB)
+    start: Mapped[float | None]
+    end: Mapped[float | None]
+
+    evaluation: Mapped[Evaluation] = relationship(back_populates="issues")

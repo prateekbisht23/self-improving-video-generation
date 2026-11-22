@@ -1,0 +1,21 @@
+id: pc-02
+version: 1
+category: pacing_scene_selection
+split: development
+sources:
+- nasa_supermoon
+reference: null
+instructions: Make a 20-25 second calm, slow edit with few long shots. Pick visually striking moon footage.
+preferences: []
+constraints:
+  min_duration: 20
+  max_duration: 25
+  aspect_ratio: '9:16'
+  captions_required: null
+  must_include: []
+  must_exclude: []
+expected_checks:
+- technical.duration_in_range
+- technical.aspect_ratio
+- temporal.shot_durations
+- visual.framing
