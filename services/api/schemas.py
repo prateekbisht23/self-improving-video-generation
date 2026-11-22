@@ -85,3 +85,65 @@ class SearchHit(BaseModel):
     scene: SceneOut
     score: float
     matched_by: list[str]  # "keyword", "semantic"
+
+
+class EditCreate(BaseModel):
+    instructions: str = Field(min_length=5, max_length=4000)
+    source_asset_ids: list[uuid.UUID] | None = Field(default=None, description="default: all ready source assets")
+    reference_asset_id: uuid.UUID | None = None
+    min_duration: float = Field(default=15, ge=3, le=180)
+    max_duration: float = Field(default=30, ge=3, le=180)
+
+
+class RenderOut(ORM):
+    id: uuid.UUID
+    status: str
+    duration: float | None
+    error: str | None
+    created_at: datetime
+
+
+class VersionOut(ORM):
+    version: int
+    content_hash: str
+    created_by: str
+    created_at: datetime
+    renders: list[RenderOut]
+
+
+class ActionOut(ORM):
+    step: int
+    name: str
+    args: dict
+    source: str
+    ok: bool
+    error: str | None
+    version_before: int | None
+    version_after: int | None
+    stage: str | None
+
+
+class EditOut(ORM):
+    id: uuid.UUID
+    project_id: uuid.UUID
+    instructions: str
+    status: str
+    reference_asset_id: uuid.UUID | None
+    constraints: dict | None
+    agent_version: str | None
+    error: str | None
+    trace_id: str | None
+    created_at: datetime
+
+
+class EditDetail(EditOut):
+    source_asset_ids: list[str]
+    agent_config: dict | None
+    plan: dict | None
+    versions: list[VersionOut]
+    actions: list[ActionOut]
+
+
+class ManualAction(BaseModel):
+    name: str
+    args: dict = Field(default_factory=dict)

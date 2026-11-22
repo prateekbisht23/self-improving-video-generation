@@ -66,3 +66,36 @@ def enqueue_processing(asset_id: uuid.UUID, force_from: str | None = None) -> st
     with session_scope() as s:
         s.get(MediaAsset, asset_id).rq_job_id = job.id
     return job.id
+
+
+def _enqueue(fn, *args, description: str):
+    """Run via RQ, or inline in sync mode (errors are recorded in the DB by the job itself)."""
+    if get_settings().rq_sync:
+        try:
+            fn(*args)
+        except Exception:
+            log.exception("inline job failed: %s", description)
+        return "inline"
+    return get_queue().enqueue(fn, *args, job_timeout=30 * 60, result_ttl=24 * 3600,
+                               failure_ttl=7 * 24 * 3600, description=description).id
+
+
+def edit_job(session_id: str) -> dict:
+    from services.worker.editing import run_editing_session
+
+    return run_editing_session(session_id)
+
+
+def render_job(version_id: str) -> dict:
+    from services.worker.editing import render_version
+
+    return render_version(uuid.UUID(version_id))
+
+
+def enqueue_edit(session_id: uuid.UUID) -> str:
+    # No automatic retry: a session is an expensive, single-shot agent run; retry is explicit.
+    return _enqueue(edit_job, str(session_id), description=f"edit session {session_id}")
+
+
+def enqueue_render(version_id: uuid.UUID) -> str:
+    return _enqueue(render_job, str(version_id), description=f"render timeline version {version_id}")

@@ -22,8 +22,9 @@ def migrated_db():
 def clean_db():
     yield
     with get_engine().begin() as c:
-        c.execute(text("TRUNCATE users, projects, media_assets, processing_stages, scenes, "
-                       "transcript_segments RESTART IDENTITY CASCADE"))
+        c.execute(text("TRUNCATE users, projects, media_assets, processing_stages, scenes, transcript_segments, "
+                       "editing_sessions, timeline_versions, agent_actions, renders, style_profiles "
+                       "RESTART IDENTITY CASCADE"))
 
 
 @pytest.fixture

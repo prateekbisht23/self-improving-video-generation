@@ -185,3 +185,108 @@ class TranscriptSegment(Base):
     asr_model: Mapped[str | None] = mapped_column(String(64))
 
     asset: Mapped[MediaAsset] = relationship(back_populates="transcript")
+
+
+# ============================================================ Phase 2: editing
+class SessionStatus(enum.StrEnum):
+    queued = "queued"
+    running = "running"
+    rendered = "rendered"
+    failed = "failed"
+
+
+class EditingSession(TimestampMixin, Base):
+    """One request to produce an edit: instructions + inputs -> timeline versions -> renders."""
+
+    __tablename__ = "editing_sessions"
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"), index=True)
+    instructions: Mapped[str] = mapped_column(Text)
+    source_asset_ids: Mapped[list[str]] = mapped_column(ARRAY(String(36)))
+    reference_asset_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("media_assets.id"))
+    constraints: Mapped[dict | None]          # min/max duration etc.
+    status: Mapped[SessionStatus] = mapped_column(Enum(SessionStatus, name="session_status"),
+                                                  default=SessionStatus.queued)
+    agent_version: Mapped[str | None] = mapped_column(String(64))
+    agent_config: Mapped[dict | None]         # models, prompt hashes, budgets (NFR-09)
+    plan: Mapped[dict | None]                 # the structured EditPlan the planner produced
+    error: Mapped[str | None] = mapped_column(Text)
+    trace_id: Mapped[str | None] = mapped_column(String(64))  # LangSmith root run id
+
+    versions: Mapped[list["TimelineVersion"]] = relationship(
+        back_populates="session", cascade="all, delete-orphan", order_by="TimelineVersion.version")
+    actions: Mapped[list["AgentAction"]] = relationship(
+        back_populates="session", cascade="all, delete-orphan", order_by="AgentAction.step")
+
+
+class TimelineVersion(Base):
+    """Immutable snapshot. Every successful timeline change creates a new row (FR-06)."""
+
+    __tablename__ = "timeline_versions"
+    __table_args__ = (UniqueConstraint("session_id", "version"),)
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    session_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("editing_sessions.id", ondelete="CASCADE"))
+    version: Mapped[int]
+    parent_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("timeline_versions.id"))
+    timeline: Mapped[dict]
+    content_hash: Mapped[str] = mapped_column(String(64), index=True)
+    schema_version: Mapped[str] = mapped_column(String(16))
+    created_by: Mapped[str] = mapped_column(String(32))  # agent | user
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+    session: Mapped[EditingSession] = relationship(back_populates="versions")
+    renders: Mapped[list["Render"]] = relationship(back_populates="timeline_version", order_by="Render.created_at")
+
+
+class AgentAction(Base):
+    """Audit log of every attempted operation, including rejected ones (FR-06: all actions logged)."""
+
+    __tablename__ = "agent_actions"
+    __table_args__ = (UniqueConstraint("session_id", "step"),)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    session_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("editing_sessions.id", ondelete="CASCADE"))
+    step: Mapped[int]
+    name: Mapped[str] = mapped_column(String(48))
+    args: Mapped[dict]
+    source: Mapped[str] = mapped_column(String(16))  # plan | repair | user | fixup
+    ok: Mapped[bool]
+    error: Mapped[str | None] = mapped_column(Text)
+    result: Mapped[dict | None]
+    version_before: Mapped[int | None]
+    version_after: Mapped[int | None]
+    stage: Mapped[str | None] = mapped_column(String(32))  # workflow stage, for next-action prediction
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+    session: Mapped[EditingSession] = relationship(back_populates="actions")
+
+
+class RenderStatus(enum.StrEnum):
+    done = "done"
+    failed = "failed"
+
+
+class Render(Base):
+    __tablename__ = "renders"
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    timeline_version_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("timeline_versions.id", ondelete="CASCADE"),
+                                                           index=True)
+    status: Mapped[RenderStatus] = mapped_column(Enum(RenderStatus, name="render_status"))
+    path: Mapped[str | None] = mapped_column(String(1024))
+    duration: Mapped[float | None]
+    meta: Mapped[dict | None]  # argv, hashes, ffmpeg/renderer versions, loudness, probe
+    error: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+    timeline_version: Mapped[TimelineVersion] = relationship(back_populates="renders")
+
+
+class StyleProfile(Base):
+    """Measured editing characteristics of a reference asset (FR-04)."""
+
+    __tablename__ = "style_profiles"
+    __table_args__ = (UniqueConstraint("asset_id", "version"),)
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    asset_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("media_assets.id", ondelete="CASCADE"), index=True)
+    version: Mapped[str] = mapped_column(String(32))  # extractor version
+    profile: Mapped[dict]
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
