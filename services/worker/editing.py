@@ -6,7 +6,7 @@ from datetime import UTC, datetime
 
 from sqlalchemy import func, select
 
-from agent.graphs.editing_graph import AGENT_VERSION, agent_config, run_edit
+from agent.graphs.editing_graph import agent_config, run_edit
 from agent.runtime import EditDeps
 from config.settings import get_settings
 from db.models import (
@@ -165,7 +165,11 @@ def run_editing_session(session_id: str) -> dict:
                 s.delete(a)
             s.flush()
         sess.status, sess.error = SessionStatus.running, None
-        sess.agent_version, sess.agent_config = AGENT_VERSION, agent_config()
+        # agent version: pinned on the session (benchmarks/experiments) or the registry's active one
+        from improvement import registry
+
+        cfg = registry.get(s, sess.agent_version) if sess.agent_version else registry.active(s)
+        sess.agent_version, sess.agent_config = cfg.version, agent_config(cfg)
         project_id, instructions = sess.project_id, sess.instructions
         asset_ids = [uuid.UUID(x) for x in sess.source_asset_ids]
         ref_id = sess.reference_asset_id
@@ -187,7 +191,7 @@ def run_editing_session(session_id: str) -> dict:
         memory_lines = [p.as_prompt() for p in prefs]
     try:
         style = ensure_style_profile(ref_id) if ref_id else None
-        deps = EditDeps(ctx=ctx, recorder=DbRecorder(sid), style=style, memory=memory_lines)
+        deps = EditDeps(ctx=ctx, recorder=DbRecorder(sid), style=style, memory=memory_lines, config=cfg)
         run_id = uuid.uuid4()  # we choose the root run id, so the DB row links to the exact trace
         with session_scope() as s:
             s.get(EditingSession, sid).trace_id = str(run_id)

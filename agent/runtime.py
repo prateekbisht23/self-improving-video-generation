@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Protocol
 
+from agent.config import DEFAULT_CONFIG, AgentConfig
 from editing.context import EditContext
 from editing.timeline.schema import Timeline
 
@@ -59,3 +60,4 @@ class EditDeps:
     recorder: Recorder
     style: dict | None = None        # StyleProfileData.model_dump() of the reference, if any
     memory: list[str] = field(default_factory=list)  # creator preferences (Phase 4)
+    config: AgentConfig = field(default_factory=lambda: DEFAULT_CONFIG)  # versioned prompts + policy (Phase 5)

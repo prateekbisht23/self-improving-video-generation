@@ -13,7 +13,7 @@ from langchain_core.rate_limiters import InMemoryRateLimiter
 
 from config.settings import get_settings
 
-Role = Literal["planner", "vision", "judge"]
+Role = Literal["planner", "vision", "judge", "improver"]
 
 
 @lru_cache
@@ -25,7 +25,7 @@ def _rate_limiter(spec: str, rpm: int) -> InMemoryRateLimiter:
 
 def get_chat_model(role: Role, **overrides) -> BaseChatModel:
     s = get_settings()
-    spec: str = getattr(s, f"model_{role}")
+    spec: str = getattr(s, f"model_{role}") or s.model_planner
     if s.model_rpm > 0:
         overrides.setdefault("rate_limiter", _rate_limiter(spec, s.model_rpm))
     provider, _, model = spec.partition(":")
@@ -58,4 +58,4 @@ def get_embeddings():
 def model_id(role: str) -> str:
     """The exact provider:model string used, recorded next to every generated artefact."""
     s = get_settings()
-    return getattr(s, f"model_{role}")
+    return getattr(s, f"model_{role}") or s.model_planner

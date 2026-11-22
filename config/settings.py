@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     model_planner: str = "ollama:qwen3:8b"
     model_vision: str = "ollama:qwen2.5vl:7b"
     model_judge: str = "ollama:qwen3:8b"
+    model_improver: str = ""  # diagnosis + candidate generation; empty = same as the planner
     model_embeddings: str = "google_genai:gemini-embedding-001"
     embedding_dim: int = 768
     ollama_base_url: str = "http://localhost:11434"

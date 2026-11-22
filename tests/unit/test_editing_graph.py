@@ -73,3 +73,76 @@ def test_online_predictions_are_logged_for_every_action(monkeypatch, synthetic, 
     assert [p["actual"] for p in rec.predictions] == [a["name"] for a in rec.actions]
     assert all(p["valid"] and len(p["predicted"]) == 3 for p in rec.predictions)
     assert rec.predictions[0]["predicted"][0] == "select_clip"  # empty timeline -> assemble first
+
+
+# ------------------------------------------------------------------ Phase 5 policy knobs
+def run_cfg(monkeypatch, synthetic, tmp_path, fake, policy, style=None, instructions="Make a short lab teaser"):
+    from agent.config import AgentConfig, AgentPolicy
+
+    monkeypatch.setattr(eg, "get_chat_model", lambda role, **_: fake)
+    rec = InMemoryRecorder(out_dir=tmp_path, do_render=False)
+    deps = EditDeps(ctx=synthetic_context(synthetic), recorder=rec, style=style,
+                    config=AgentConfig(policy=AgentPolicy(**policy)))
+    return eg.run_edit(instructions, deps, min_duration=8, max_duration=15), rec
+
+
+def test_snap_cuts_moves_planned_edges_to_sentence_boundaries(monkeypatch, synthetic, tmp_path):
+    fake = FakeModel(make_plan([("S1", 0.8, 3.1), ("S4", 8, 12)]))  # 0.8 is inside "editing", 3.1 inside "scene"
+    final, rec = run_cfg(monkeypatch, synthetic, tmp_path, fake, {"snap_cuts": "sentence"})
+    first = rec.actions[0]
+    assert first["name"] == "select_clip" and first["ok"]
+    assert first["args"]["src_in"] == pytest.approx(0.0) and first["args"]["src_out"] == pytest.approx(4.0)
+    assert rec.actions[1]["args"] == {"scene_id": "S4", "src_in": 8, "src_out": 12, "purpose": "p"}  # silent b-roll
+
+
+def test_default_policy_leaves_edges_alone(monkeypatch, synthetic, tmp_path):
+    fake = FakeModel(make_plan([("S1", 0.8, 3.1), ("S4", 8, 12)]))
+    final, rec = run_cfg(monkeypatch, synthetic, tmp_path, fake, {})
+    assert rec.actions[0]["args"]["src_in"] == 0.8 and rec.actions[0]["args"]["src_out"] == 3.1
+
+
+STYLE_NO_CAPTIONS = {"guidance": {"pace": "medium", "target_shot_seconds": 4, "max_shot_seconds": 8,
+                                  "caption_position": "bottom", "caption_uppercase": False, "color": "none",
+                                  "transition": "cut"},
+                     "shots": {"median": 4, "p10": 2, "p90": 6, "cuts_per_minute": 15},
+                     "observed": {"captions_present": False}}
+
+
+@pytest.mark.parametrize("on,instructions,expect_captions", [
+    (False, "Make a short lab teaser", True),            # v0.2 behaviour: plan says captions -> captions
+    (True, "Make a short lab teaser", False),            # reference has none, nobody asked -> skip
+    (True, "Make a teaser with captions", True),         # the instructions win
+])
+def test_captions_follow_reference(monkeypatch, synthetic, tmp_path, on, instructions, expect_captions):
+    fake = FakeModel(make_plan([("S1", 0, 5.0), ("S4", 8, 12)]))
+    final, rec = run_cfg(monkeypatch, synthetic, tmp_path, fake, {"captions_follow_reference": on},
+                         style=STYLE_NO_CAPTIONS, instructions=instructions)
+    assert ("generate_captions" in [a["name"] for a in rec.actions]) is expect_captions
+
+
+def test_fixup_extend_rescues_a_too_short_edit(monkeypatch, synthetic, tmp_path):
+    fake = FakeModel(make_plan([("S2", 0, 2)]), repairs=[])
+    final, rec = run_cfg(monkeypatch, synthetic, tmp_path, fake, {"fixup_extend": True})
+    assert final["status"] == "rendered"
+    assert 8 <= rec.versions[final["version"]].duration <= 15
+    assert {a["name"] for a in rec.actions if a["source"] == "fixup"} >= {"trim_clip", "select_clip"}
+
+
+def test_scene_reuse_check_can_be_switched_off(monkeypatch, synthetic, tmp_path):
+    clips = [("S1", 0, 3), ("S1", 3.3, 6), ("S1", 6.2, 9.5)]  # one long interview scene, three sentences
+    on, _ = run_cfg(monkeypatch, synthetic, tmp_path, FakeModel(make_plan(clips), repairs=[]), {})
+    off, _ = run_cfg(monkeypatch, synthetic, tmp_path, FakeModel(make_plan(clips), repairs=[]),
+                     {"scene_reuse_check": False})
+    assert on["status"] == "failed" and off["status"] == "rendered"
+
+
+def test_prompt_addendum_reaches_the_planner(monkeypatch, synthetic, tmp_path):
+    from agent.config import AgentConfig
+
+    fake = FakeModel(make_plan([("S1", 0, 5.0), ("S4", 8, 12)]))
+    monkeypatch.setattr(eg, "get_chat_model", lambda role, **_: fake)
+    deps = EditDeps(ctx=synthetic_context(synthetic), recorder=InMemoryRecorder(out_dir=tmp_path, do_render=False),
+                    config=AgentConfig(planner_addendum="- End on a complete sentence."))
+    eg.run_edit("teaser", deps, min_duration=8, max_duration=15)
+    assert "End on a complete sentence." in fake.calls[0][1][0].content
+    assert deps.config.version in eg.agent_config(deps.config)["agent_version"]

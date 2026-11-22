@@ -450,3 +450,84 @@ class ActionPrediction(Base):
     valid: Mapped[bool]
     latency_ms: Mapped[float]
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+# ============================================================ Phase 5: self-improvement
+class AgentVersion(Base):
+    """Registry of agent configurations (FR-12). Rows are immutable except for `status`."""
+
+    __tablename__ = "agent_versions"
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    version: Mapped[str] = mapped_column(String(64), unique=True)
+    parent_version: Mapped[str | None] = mapped_column(String(64))
+    config: Mapped[dict] = mapped_column(JSONB)          # AgentConfig.model_dump()
+    status: Mapped[str] = mapped_column(String(16), index=True)  # active | candidate | rejected | retired
+    origin: Mapped[str] = mapped_column(String(16))      # seed | improver | human
+    rationale: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class FailureCluster(Base):
+    """A recurring failure pattern found in one analysis run (FR-11)."""
+
+    __tablename__ = "failure_clusters"
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    analysis_id: Mapped[uuid.UUID] = mapped_column(index=True)
+    agent_version: Mapped[str] = mapped_column(String(64))
+    method: Mapped[str] = mapped_column(String(16))      # rule | semantic
+    key: Mapped[str] = mapped_column(String(128))
+    label: Mapped[str] = mapped_column(Text)
+    check_id: Mapped[str] = mapped_column(String(64))
+    category: Mapped[str] = mapped_column(String(32))
+    severity: Mapped[str] = mapped_column(String(16))
+    size: Mapped[int]                                     # failed checks in the cluster
+    n_sessions: Mapped[int]
+    rate: Mapped[float]                                   # share of analysed renders with this failure
+    tasks: Mapped[list[str]] = mapped_column(ARRAY(String(32)))
+    issue_ids: Mapped[list[int]] = mapped_column(ARRAY(Integer))
+    examples: Mapped[list] = mapped_column(JSONB)
+    diagnosis: Mapped[dict | None] = mapped_column(JSONB)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class Experiment(Base):
+    """Baseline vs candidate on fixed benchmark inputs (PRD §8.4): everything needed to audit a decision."""
+
+    __tablename__ = "experiments"
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    name: Mapped[str] = mapped_column(String(128))
+    analysis_id: Mapped[uuid.UUID | None]
+    baseline_version: Mapped[str] = mapped_column(String(64))
+    candidate_version: Mapped[str] = mapped_column(String(64))
+    dataset_version: Mapped[str] = mapped_column(String(64))
+    evaluator_version: Mapped[str] = mapped_column(String(32))
+    models: Mapped[dict] = mapped_column(JSONB)
+    splits: Mapped[list[str]] = mapped_column(ARRAY(String(16)))
+    change: Mapped[dict] = mapped_column(JSONB)          # hypothesis, targets, config diff
+    n_runs: Mapped[int] = mapped_column(Integer, default=1)
+    baseline_run: Mapped[str | None] = mapped_column(Text)   # results file
+    candidate_run: Mapped[str | None] = mapped_column(Text)
+    comparison: Mapped[dict | None] = mapped_column(JSONB)
+    gates: Mapped[dict | None] = mapped_column(JSONB)
+    holdout: Mapped[dict | None] = mapped_column(JSONB)
+    status: Mapped[str] = mapped_column(String(24), default="created")
+    # created | running | rejected | awaiting_approval | approved | promoted | declined
+    decision_by: Mapped[str | None] = mapped_column(String(64))
+    decision_note: Mapped[str | None] = mapped_column(Text)
+    decided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    report_path: Mapped[str | None] = mapped_column(Text)
+    thread_id: Mapped[str | None] = mapped_column(String(64))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class Promotion(Base):
+    """Promotion history: which version replaced which, on what evidence, approved by whom."""
+
+    __tablename__ = "promotions"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    experiment_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("experiments.id", name="fk_promotions_experiment_id"))
+    from_version: Mapped[str] = mapped_column(String(64))
+    to_version: Mapped[str] = mapped_column(String(64))
+    approved_by: Mapped[str] = mapped_column(String(64))
+    note: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)

@@ -3,6 +3,7 @@
     uv run python -m benchmarks.runner --split development [--limit 3] [--no-judges]
     uv run python -m benchmarks.runner --split holdout --allow-holdout      # final assessment only
     uv run python -m benchmarks.runner --reevaluate benchmarks/results/<run>.json   # evaluator stability
+    uv run python -m benchmarks.runner --split development --agent-version <version>  # a registered version
 
 Per task: ensure source/reference assets (by sample id) -> editing session (agent) -> render
 -> independent evaluation. Results go to benchmarks/results/<run_id>.json (resumable) and to a
@@ -20,7 +21,6 @@ from pathlib import Path
 
 from sqlalchemy import select
 
-from agent.graphs.editing_graph import AGENT_VERSION
 from benchmarks.schemas.task import BenchmarkTask, dataset_version, load_tasks
 from config.models import model_id
 from config.settings import get_settings
@@ -31,6 +31,14 @@ from evaluation.schemas import EVALUATOR_VERSION
 RESULTS = Path(__file__).resolve().parent / "results"
 PROJECT_TITLE = "Benchmark v1"
 DATASET = "sivg-bench"
+
+
+class QuotaExhausted(RuntimeError):
+    """The model provider's DAILY quota ran out: every further task would fail the same way."""
+
+    def __init__(self, path: Path, where: str):
+        super().__init__(f"daily model quota exhausted at {where}; resume later with --resume {path}")
+        self.path = path
 
 
 # ------------------------------------------------------------------ assets
@@ -67,7 +75,7 @@ def seed_creator(task: BenchmarkTask) -> uuid.UUID:
 
 
 # ------------------------------------------------------------------ one task
-def run_task(task: BenchmarkTask, *, judges: bool = True) -> dict:
+def run_task(task: BenchmarkTask, *, judges: bool = True, agent_version: str | None = None) -> dict:
     from services.worker.editing import ensure_style_profile, run_editing_session
 
     project_id, assets = benchmark_assets()
@@ -81,6 +89,7 @@ def run_task(task: BenchmarkTask, *, judges: bool = True) -> dict:
     creator_id = seed_creator(task) if task.preferences else None
     with session_scope() as s:
         e = EditingSession(project_id=project_id, instructions=task.instructions, creator_id=creator_id,
+                           agent_version=agent_version,
                            source_asset_ids=[str(assets[x]) for x in task.sources],
                            reference_asset_id=assets[task.reference] if task.reference else None,
                            constraints={**c.model_dump(), "preferences": task.preferences,
@@ -273,6 +282,7 @@ def main() -> None:
     ap.add_argument("--resume", type=Path, help="continue a previous results file")
     ap.add_argument("--reevaluate", type=Path)
     ap.add_argument("--no-langsmith", action="store_true")
+    ap.add_argument("--agent-version", help="registered agent version (default: the active one)")
     a = ap.parse_args()
     get_settings()
     import os
@@ -287,48 +297,70 @@ def main() -> None:
     if a.tasks:
         tasks = [t for t in tasks if t.id in a.tasks]
     tasks = tasks[: a.limit] if a.limit else tasks
+    try:
+        run, path = run_benchmark(tasks, splits=a.split, agent_version=a.agent_version, judges=not a.no_judges,
+                                  resume=a.resume, langsmith=not a.no_langsmith)
+    except QuotaExhausted as e:
+        raise SystemExit(str(e)) from None
+    print(json.dumps(run["summary"], indent=2))
+    print(f"results: {path}")
+
+
+def run_benchmark(tasks: list[BenchmarkTask], *, splits: list[str], agent_version: str | None = None,
+                  judges: bool = True, resume: Path | None = None, path: Path | None = None,
+                  langsmith: bool = True, label: str = "") -> tuple[dict, Path]:
+    """Run (or resume) tasks with one agent version; results file is written after every task.
+    `path` fixes the results file name up front (experiments use it so a stopped run resumes)."""
+    from improvement import registry
+
+    with session_scope() as s:
+        version = agent_version or registry.active(s).version
+        registry.get(s, version)  # must exist (and still hash to its name)
     RESULTS.mkdir(exist_ok=True)
-    if a.resume:
-        run = json.loads(a.resume.read_text())
-        path = a.resume
+    if resume is None and path is not None and path.exists():
+        resume = path
+    if resume:
+        run = json.loads(resume.read_text())
+        path = resume
+        if run["agent_version"] != version:
+            raise ValueError(f"{resume} was run with {run['agent_version']}, not {version}")
     else:
-        rid = datetime.now(UTC).strftime("%Y%m%dT%H%M%S") + "-" + "-".join(s[:3] for s in a.split)
-        run = {"run_id": rid, "agent_version": AGENT_VERSION, "evaluator_version": EVALUATOR_VERSION,
-               "dataset_version": dataset_version(), "splits": a.split, "judges": not a.no_judges,
+        rid = datetime.now(UTC).strftime("%Y%m%dT%H%M%S") + "-" + "-".join(s[:3] for s in splits) + label
+        run = {"run_id": path.stem if path else rid, "agent_version": version,
+               "evaluator_version": EVALUATOR_VERSION,
+               "dataset_version": dataset_version(), "splits": splits, "judges": judges,
                "models": {r: model_id(r) for r in ("planner", "vision", "judge", "embeddings")},
                "started": datetime.now(UTC).isoformat(timespec="seconds"), "results": []}
-        path = RESULTS / f"{rid}.json"
+        path = path or RESULTS / f"{rid}.json"
     done = {r["task"] for r in run["results"] if r.get("status") != "error"}
     run["results"] = [r for r in run["results"] if r["task"] in done]
     for r in run["results"]:  # judges failed (e.g. quota) on an otherwise finished task: re-evaluate only
         if r.get("judge_errors") and r.get("render_id"):
             print(f"re-evaluating {r['task']} (judge errors: {r['judge_errors']})", flush=True)
-            r.update(evaluation_fields(r["render_id"], not a.no_judges))
+            r.update(evaluation_fields(r["render_id"], judges))
             if r.get("daily_quota"):
                 path.write_text(json.dumps(run, indent=2))
-                raise SystemExit(f"daily model quota still exhausted; resume later with --resume {path}")
+                raise QuotaExhausted(path, r["task"])
     for i, t in enumerate(tasks, 1):
         if t.id in done:
             continue
         print(f"[{i}/{len(tasks)}] {t.id} ({t.category}) ...", flush=True)
-        r = run_task(t, judges=not a.no_judges)
+        r = run_task(t, judges=judges, agent_version=version)
         run["results"].append(r)
         if r.get("daily_quota"):
-            # daily model quota: every later task would fail the same way; stop and keep progress
             path.write_text(json.dumps(run, indent=2))
-            raise SystemExit(f"daily model quota exhausted at {t.id}; resume later with --resume {path}")
+            raise QuotaExhausted(path, t.id)
         print(f"    -> {r['status']} gate={r.get('gate')} pass_rate={r.get('pass_rate')} "
               f"repairs={r.get('repairs')} {r['seconds']}s failed={r.get('failed')}", flush=True)
         run["summary"] = summarize(run["results"])
         path.write_text(json.dumps(run, indent=2))
     run["summary"] = summarize(run["results"])
     run["finished"] = datetime.now(UTC).isoformat(timespec="seconds")
-    if not a.no_langsmith:
+    if langsmith and not run.get("langsmith_experiment"):
         run["langsmith_experiment"] = log_experiment(run, tasks)
     path.write_text(json.dumps(run, indent=2))
     write_markdown(run, path.with_suffix(".md"))
-    print(json.dumps(run["summary"], indent=2))
-    print(f"results: {path}")
+    return run, path
 
 
 if __name__ == "__main__":

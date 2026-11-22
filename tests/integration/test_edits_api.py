@@ -30,7 +30,7 @@ def test_edit_session_end_to_end(client, processed, monkeypatch):
     e = client.get(f"/edits/{r.json()['id']}").json()
     assert e["status"] == "rendered", e["error"]
     assert e["agent_version"].startswith("editing-agent-") and e["plan"]["clips"][1]["scene_id"] == "S99"
-    assert e["trace_id"] and e["agent_config"]["prompt_hash"]  # links to the LangSmith root run
+    assert e["trace_id"] and e["agent_config"]["config_hash"]  # links to the LangSmith root run
 
     acts = e["actions"]
     assert [a["step"] for a in acts] == list(range(1, len(acts) + 1))          # every attempt logged

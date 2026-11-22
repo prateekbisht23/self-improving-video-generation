@@ -24,26 +24,22 @@ from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import StructuredTool
 from langgraph.graph import END, START, StateGraph
 
+from agent.config import DEFAULT_CONFIG, AgentConfig
 from agent.prediction.features import ACTIONS, featurize
 from agent.prediction.predictors import RulePredictor
-from agent.prompts.editing import (
-    PLANNER_HUMAN,
-    PLANNER_SYSTEM,
-    REPAIR_HUMAN,
-    REPAIR_SYSTEM,
-    prompt_hash,
-)
+from agent.prompts.editing import PLANNER_HUMAN, REPAIR_HUMAN
 from agent.runtime import EditDeps
 from agent.schemas.plan import EditPlan
 from config.models import get_chat_model, model_id
 from editing.context import EditContext
 from editing.operations import OPERATIONS, READ_ONLY, apply_action
+from editing.snapping import next_sentence_end, snap_clip
 from editing.timeline.schema import OutputSpec, Timeline
 
-AGENT_NAME = "editing-agent"
-AGENT_VERSION = f"{AGENT_NAME}-0.2+{prompt_hash()}"  # 0.2: creator memory, caption case
-MAX_STEPS = 40
-MAX_REPAIRS = 4
+# Behaviour comes from a versioned AgentConfig (agent/config.py). The default config is v0.2.
+AGENT_VERSION = DEFAULT_CONFIG.version
+MAX_STEPS = DEFAULT_CONFIG.policy.max_steps
+MAX_REPAIRS = DEFAULT_CONFIG.policy.max_repairs
 _RULES = RulePredictor()
 STAGE_OF = {"select_clip": "assemble", "trim_clip": "assemble", "remove_clip": "assemble",
             "reorder_clips": "assemble", "add_transition": "transitions", "apply_style": "style",
@@ -77,10 +73,16 @@ class EditState(TypedDict, total=False):
     status: str
     log: list[str]
     history: list[list]  # [[action, ok, source], ...] for next-action prediction
+    max_steps: int
+    max_repairs: int
 
 
 def _deps(config: RunnableConfig) -> EditDeps:
     return config["configurable"]["deps"]
+
+
+def _cfg(config: RunnableConfig) -> AgentConfig:
+    return _deps(config).config
 
 
 def _tl(state: EditState) -> Timeline:
@@ -132,8 +134,10 @@ def load_context(state: EditState, config: RunnableConfig) -> EditState:
     tl = Timeline(assets=deps.ctx.assets,
                   output=OutputSpec(min_duration=state["min_duration"], max_duration=state["max_duration"]))
     deps.recorder.save_version(tl, 0, "agent")
+    pol = deps.config.policy
     return {"digest": scene_digest(deps.ctx), "timeline": tl.model_dump(mode="json"), "version": 0,
-            "step": 0, "repairs": 0, "queue": [], "problems": [], "log": [], "status": "running", "history": []}
+            "step": 0, "repairs": 0, "queue": [], "problems": [], "log": [], "status": "running", "history": [],
+            "max_steps": pol.max_steps, "max_repairs": pol.max_repairs}
 
 
 def load_memory(state: EditState, config: RunnableConfig) -> EditState:
@@ -148,7 +152,7 @@ def load_style(state: EditState, config: RunnableConfig) -> EditState:
 def plan(state: EditState, config: RunnableConfig) -> EditState:
     model = get_chat_model("planner").with_structured_output(EditPlan)
     p: EditPlan = model.invoke([
-        SystemMessage(PLANNER_SYSTEM),
+        SystemMessage(_cfg(config).planner_system()),
         HumanMessage(PLANNER_HUMAN.format(
             instructions=state["instructions"], min_duration=state["min_duration"],
             max_duration=state["max_duration"], style=state["style_text"], memory=state["memory_text"],
@@ -161,7 +165,8 @@ def plan(state: EditState, config: RunnableConfig) -> EditState:
 def compile_plan(state: EditState, config: RunnableConfig) -> EditState:
     """Deterministic: EditPlan -> ordered list of typed operations."""
     p = EditPlan.model_validate(state["plan"])
-    style = _deps(config).style
+    deps = _deps(config)
+    style = deps.style
     q: list[Action] = [{"name": "select_clip", "source": "plan",
                         "args": {"scene_id": c.scene_id, "src_in": c.src_in, "src_out": c.src_out,
                                  "purpose": c.purpose}} for c in p.clips]
@@ -171,11 +176,53 @@ def compile_plan(state: EditState, config: RunnableConfig) -> EditState:
     q.append({"name": "apply_style", "source": "plan", "args": {
         "color": p.color, "caption_position": p.caption_position,
         "caption_uppercase": p.caption_uppercase or bool(style and style["guidance"]["caption_uppercase"])}})
-    if p.captions:
+    if p.captions and not _skip_captions(deps, state):
         q.append({"name": "generate_captions", "source": "plan", "args": {}})
     if p.title:
         q.append({"name": "add_title", "source": "plan", "args": {"text": p.title[:80], "start": 0, "end": 2.2}})
     return {"queue": q}
+
+
+CAPTION_WORDS = ("caption", "subtitle", "on mute", "sound off")
+
+
+def _skip_captions(deps: EditDeps, state: EditState) -> bool:
+    """Policy captions_follow_reference: the reference has no captions and nobody asked for them."""
+    if not (deps.config.policy.captions_follow_reference and deps.style):
+        return False
+    observed = deps.style.get("observed") or {}
+    if observed.get("captions_present", True):
+        return False
+    asked = (state["instructions"] + " " + state.get("memory_text", "")).lower()
+    return not any(w in asked for w in CAPTION_WORDS)
+
+
+def _snap_args(tl: Timeline, act: Action, deps: EditDeps) -> dict:
+    """Policy snap_cuts: move the in/out points of select_clip / trim_clip to speech boundaries."""
+    mode = deps.config.policy.snap_cuts
+    args = dict(act["args"])
+    if mode == "off" or act["name"] not in ("select_clip", "trim_clip"):
+        return args
+    try:
+        if act["name"] == "select_clip":
+            sc = deps.ctx.scene(args["scene_id"])
+            src_in = args.get("src_in") if args.get("src_in") is not None else sc.start
+            src_out = args.get("src_out") if args.get("src_out") is not None else sc.end
+            asset = sc.asset_id
+        else:
+            c = tl.video[args["index"]]
+            sc = deps.ctx.scene(c.scene_id) if c.scene_id else None
+            src_in = args.get("src_in") if args.get("src_in") is not None else c.src_in
+            src_out = args.get("src_out") if args.get("src_out") is not None else c.src_out
+            asset = c.asset_id
+        lo, hi = (sc.start, sc.end) if sc else (0.0, float("inf"))
+        new_in, new_out = snap_clip(float(src_in), float(src_out), deps.ctx.words.get(asset, []), lo, hi, mode,
+                                    deps.config.policy.snap_max_shift)
+    except (KeyError, IndexError, TypeError, ValueError):
+        return args  # invalid args: let the operation report the error as usual
+    if (new_in, new_out) != (src_in, src_out):
+        args |= {"src_in": new_in, "src_out": new_out}
+    return args
 
 
 def next_action(state: EditState, config: RunnableConfig) -> EditState:
@@ -199,6 +246,7 @@ def next_action(state: EditState, config: RunnableConfig) -> EditState:
 def execute(state: EditState, config: RunnableConfig) -> EditState:
     deps, act = _deps(config), state["current"]
     tl = _tl(state)
+    act = {**act, "args": _snap_args(tl, act, deps)}
     res = apply_action(tl, act["name"], act["args"], deps.ctx)
     step, version = state["step"] + 1, state["version"]
     new_version = version + 1 if res.changed else version
@@ -230,7 +278,7 @@ def repair(state: EditState, config: RunnableConfig) -> EditState:
     tl = _tl(state)
     problem = state.get("last_error") or "; ".join(state.get("problems", []))
     model = get_chat_model("planner").bind_tools(_tools())
-    messages = [SystemMessage(REPAIR_SYSTEM), HumanMessage(REPAIR_HUMAN.format(
+    messages = [SystemMessage(_cfg(config).repair_system()), HumanMessage(REPAIR_HUMAN.format(
         problem=problem, instructions=state["instructions"], min_duration=state["min_duration"],
         max_duration=state["max_duration"], duration=tl.duration, timeline=timeline_digest(tl),
         digest=state["digest"]))]
@@ -256,19 +304,23 @@ def repair(state: EditState, config: RunnableConfig) -> EditState:
                                                    f"{[q['name'] for q in queued]}"]}
 
 
-def check(state: EditState) -> EditState:
+def check(state: EditState, config: RunnableConfig) -> EditState:
     tl = _tl(state)
     problems = tl.render_problems()
-    if any(c.duration > 0 for c in tl.video) and len({c.scene_id for c in tl.video}) < len(tl.video) / 2:
+    if (_cfg(config).policy.scene_reuse_check and any(c.duration > 0 for c in tl.video)
+            and len({c.scene_id for c in tl.video}) < len(tl.video) / 2):
         problems.append("most clips reuse the same scenes; vary the footage")
     return {"problems": problems}
 
 
-def fixup(state: EditState) -> EditState:
-    """Last-resort deterministic fix when repair budget is spent: trim the tail to fit max duration."""
+def fixup(state: EditState, config: RunnableConfig) -> EditState:
+    """Last-resort deterministic fix when repair budget is spent: trim the tail to fit max duration
+    (and, with policy fixup_extend, lengthen an edit that is too short)."""
     tl = _tl(state)
     over = tl.duration - state["max_duration"]
     q: list[Action] = []
+    if _cfg(config).policy.fixup_extend and tl.video and tl.duration < state["min_duration"]:
+        q = _extend_actions(tl, state, _deps(config))
     if over > 0 and tl.video:
         for i in range(len(tl.video) - 1, -1, -1):
             c = tl.video[i]
@@ -280,7 +332,41 @@ def fixup(state: EditState) -> EditState:
             if over <= 0:
                 break
     return {"queue": q, "problems": [], "repairs": state["repairs"] + 1,
-            "log": state["log"] + [f"fixup: {len(q)} deterministic trims"]}
+            "log": state["log"] + [f"fixup: {len(q)} deterministic actions"]}
+
+
+def _extend_actions(tl: Timeline, state: EditState, deps: EditDeps) -> list[Action]:
+    """Grow a too-short edit towards the middle of the target window: first extend clips to later
+    sentence ends inside their scene, then append unused speech scenes (trimmed to fit)."""
+    goal = (state["min_duration"] + state["max_duration"]) / 2
+    need = goal - tl.duration
+    q: list[Action] = []
+    for i in range(len(tl.video) - 1, -1, -1):
+        c = tl.video[i]
+        if need <= 0 or not c.scene_id:
+            continue
+        sc = deps.ctx.scene(c.scene_id)
+        words = deps.ctx.words.get(c.asset_id, [])
+        end, t = c.src_out, c.src_out
+        while (nxt := next_sentence_end(t, words, sc.end)) is not None and nxt - c.src_out <= need:
+            end, t = nxt, nxt
+        if end == c.src_out and sc.end - c.src_out > 0.3 and not words:  # silent b-roll: just extend
+            end = min(sc.end, c.src_out + need)
+        if end > c.src_out:
+            q.append({"name": "trim_clip", "source": "fixup", "args": {"index": i, "src_out": round(end, 3)}})
+            need -= end - c.src_out
+    used = {c.scene_id for c in tl.video}
+    for sc in sorted(deps.ctx.scenes.values(), key=lambda s: -s.speech_ratio):
+        if need <= 0.5:
+            break
+        if sc.sid in used or sc.duration < 1.0:
+            continue
+        take = min(sc.duration, need)
+        q.append({"name": "select_clip", "source": "fixup",
+                  "args": {"scene_id": sc.sid, "src_in": sc.start, "src_out": round(sc.start + take, 3),
+                           "purpose": "fixup: extend a too-short edit"}})
+        need -= take
+    return q
 
 
 def render_node(state: EditState, config: RunnableConfig) -> EditState:
@@ -296,13 +382,13 @@ def fail(state: EditState) -> EditState:
 
 # ------------------------------------------------------------------ routing
 def after_next(state: EditState) -> str:
-    if state["step"] >= MAX_STEPS:
+    if state["step"] >= state.get("max_steps", MAX_STEPS):
         return "fail"
     return "execute" if state.get("current") else "check"
 
 
 def after_execute(state: EditState) -> str:
-    if state.get("last_error") and state["repairs"] < MAX_REPAIRS:
+    if state.get("last_error") and state["repairs"] < state.get("max_repairs", MAX_REPAIRS):
         return "repair"
     return "next_action"
 
@@ -310,10 +396,11 @@ def after_execute(state: EditState) -> str:
 def after_check(state: EditState) -> str:
     if not state["problems"]:
         return "render"
-    if state["repairs"] < MAX_REPAIRS:
+    budget = state.get("max_repairs", MAX_REPAIRS)
+    if state["repairs"] < budget:
         return "repair"
-    tl_too_long = any("outside target" in p for p in state["problems"])
-    return "fixup" if tl_too_long and state["repairs"] < MAX_REPAIRS + 1 else "fail"
+    wrong_length = any("outside target" in p for p in state["problems"])
+    return "fixup" if wrong_length and state["repairs"] < budget + 1 else "fail"
 
 
 def build_graph():
@@ -339,18 +426,22 @@ def build_graph():
     return g.compile()
 
 
-def agent_config() -> dict[str, Any]:
-    return {"agent_version": AGENT_VERSION, "planner": model_id("planner"), "max_steps": MAX_STEPS,
-            "max_repairs": MAX_REPAIRS, "prompt_hash": prompt_hash()}
+def agent_config(cfg: AgentConfig = DEFAULT_CONFIG) -> dict[str, Any]:
+    return {"agent_version": cfg.version, "planner": model_id("planner"), "max_steps": cfg.policy.max_steps,
+            "max_repairs": cfg.policy.max_repairs, "config_hash": cfg.config_hash(), "config": cfg.model_dump()}
 
 
 def run_edit(instructions: str, deps: EditDeps, *, min_duration: float = 15, max_duration: float = 30,
              run_name: str = "editing_session", metadata: dict | None = None,
              run_id: uuid.UUID | None = None) -> EditState:
-    """`run_id` becomes the LangSmith root run id (= trace id), so callers can link to the trace."""
+    """`run_id` becomes the LangSmith root run id (= trace id), so callers can link to the trace.
+    The agent's behaviour is deps.config (a versioned AgentConfig)."""
+    cfg = deps.config
+    meta = agent_config(cfg)
+    meta.pop("config")
     return build_graph().invoke(
         {"instructions": instructions, "min_duration": min_duration, "max_duration": max_duration},
-        config={"configurable": {"deps": deps}, "recursion_limit": 4 * MAX_STEPS + 20, "run_name": run_name,
-                "run_id": run_id,
-                "tags": ["editing", AGENT_VERSION], "metadata": {**(metadata or {}), **agent_config()}},
+        config={"configurable": {"deps": deps}, "recursion_limit": 4 * cfg.policy.max_steps + 20,
+                "run_name": run_name, "run_id": run_id,
+                "tags": ["editing", cfg.version], "metadata": {**(metadata or {}), **meta}},
     )

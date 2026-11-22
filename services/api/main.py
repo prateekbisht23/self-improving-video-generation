@@ -6,7 +6,7 @@ from sqlalchemy import text
 
 from config.settings import get_settings
 from db.session import get_engine
-from services.api.routes import assets, edits, memory, projects, search
+from services.api.routes import assets, edits, improvement, memory, projects, search
 
 get_settings()  # export .env for SDKs used in request handlers (embeddings for search)
 
@@ -18,6 +18,7 @@ app.include_router(assets.router)
 app.include_router(search.router)
 app.include_router(edits.router)
 app.include_router(memory.router)
+app.include_router(improvement.router)
 
 
 @app.get("/health")

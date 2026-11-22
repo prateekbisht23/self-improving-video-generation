@@ -25,7 +25,7 @@ def clean_db():
         c.execute(text("TRUNCATE users, projects, media_assets, processing_stages, scenes, transcript_segments, "
                        "editing_sessions, timeline_versions, agent_actions, renders, style_profiles, evaluations, "
                        "evaluation_issues, creator_preferences, preference_events, feedback, memory_confirmations, "
-                       "action_predictions "
+                       "action_predictions, agent_versions, failure_clusters, experiments, promotions "
                        "RESTART IDENTITY CASCADE"))
 
 
