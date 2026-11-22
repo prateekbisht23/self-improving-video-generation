@@ -69,7 +69,8 @@ def _judge(fn, check_id: str, category: str):
         if not _opts(config).get("judges", True) or not f.readable:
             return {"results": []}
         try:
-            return {"results": [fn(f, _x(state)).model_dump()]}
+            res = fn(f, _x(state))
+            return {"results": [c.model_dump() for c in (res if isinstance(res, list) else [res])]}
         except Exception as e:  # a judge failure must not sink the whole evaluation
             return {"results": [CheckResult(id=check_id, category=category, kind="model", passed=None,
                                             severity="major", message=f"judge error: {type(e).__name__}: "

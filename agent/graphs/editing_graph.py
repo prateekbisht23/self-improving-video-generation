@@ -15,6 +15,7 @@ START → load_context → load_memory → load_style → plan → compile_plan
 - Budgets (max_steps, max_repairs) guarantee termination (PRD risk: agent execution loops).
 """
 
+import time
 import uuid
 from typing import Any, Literal, TypedDict
 
@@ -23,6 +24,8 @@ from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import StructuredTool
 from langgraph.graph import END, START, StateGraph
 
+from agent.prediction.features import ACTIONS, featurize
+from agent.prediction.predictors import RulePredictor
 from agent.prompts.editing import (
     PLANNER_HUMAN,
     PLANNER_SYSTEM,
@@ -38,9 +41,10 @@ from editing.operations import OPERATIONS, READ_ONLY, apply_action
 from editing.timeline.schema import OutputSpec, Timeline
 
 AGENT_NAME = "editing-agent"
-AGENT_VERSION = f"{AGENT_NAME}-0.1+{prompt_hash()}"
+AGENT_VERSION = f"{AGENT_NAME}-0.2+{prompt_hash()}"  # 0.2: creator memory, caption case
 MAX_STEPS = 40
 MAX_REPAIRS = 4
+_RULES = RulePredictor()
 STAGE_OF = {"select_clip": "assemble", "trim_clip": "assemble", "remove_clip": "assemble",
             "reorder_clips": "assemble", "add_transition": "transitions", "apply_style": "style",
             "set_framing": "style", "adjust_audio": "audio", "generate_captions": "captions",
@@ -72,6 +76,7 @@ class EditState(TypedDict, total=False):
     render: dict | None
     status: str
     log: list[str]
+    history: list[list]  # [[action, ok, source], ...] for next-action prediction
 
 
 def _deps(config: RunnableConfig) -> EditDeps:
@@ -128,7 +133,7 @@ def load_context(state: EditState, config: RunnableConfig) -> EditState:
                   output=OutputSpec(min_duration=state["min_duration"], max_duration=state["max_duration"]))
     deps.recorder.save_version(tl, 0, "agent")
     return {"digest": scene_digest(deps.ctx), "timeline": tl.model_dump(mode="json"), "version": 0,
-            "step": 0, "repairs": 0, "queue": [], "problems": [], "log": [], "status": "running"}
+            "step": 0, "repairs": 0, "queue": [], "problems": [], "log": [], "status": "running", "history": []}
 
 
 def load_memory(state: EditState, config: RunnableConfig) -> EditState:
@@ -165,7 +170,7 @@ def compile_plan(state: EditState, config: RunnableConfig) -> EditState:
                "args": {"index": i, "type": p.transition, "duration": 0.35}} for i in range(1, len(p.clips))]
     q.append({"name": "apply_style", "source": "plan", "args": {
         "color": p.color, "caption_position": p.caption_position,
-        "caption_uppercase": bool(style and style["guidance"]["caption_uppercase"])}})
+        "caption_uppercase": p.caption_uppercase or bool(style and style["guidance"]["caption_uppercase"])}})
     if p.captions:
         q.append({"name": "generate_captions", "source": "plan", "args": {}})
     if p.title:
@@ -173,9 +178,22 @@ def compile_plan(state: EditState, config: RunnableConfig) -> EditState:
     return {"queue": q}
 
 
-def next_action(state: EditState) -> EditState:
+def next_action(state: EditState, config: RunnableConfig) -> EditState:
+    """Pop the next queued action. Before it runs, the rules predictor guesses it (online, logged),
+    which gives a live accuracy signal for FR-07 without letting the predictor drive the agent yet."""
     q = list(state["queue"])
-    return {"current": q.pop(0) if q else None, "queue": q}
+    current = q.pop(0) if q else None
+    if current and current["name"] in ACTIONS:
+        f = featurize(state["timeline"], [tuple(h) for h in state.get("history", [])], state["instructions"],
+                      state["min_duration"], state["max_duration"], state.get("memory_text", ""))
+        t0 = time.perf_counter()
+        pred = _RULES.predict(f)
+        _deps(config).recorder.record_prediction(
+            step=state["step"] + 1, predictor=_RULES.name, predicted=pred, actual=current["name"],
+            stage=STAGE_OF.get(current["name"], "other"), correct_top1=pred[:1] == [current["name"]],
+            correct_top3=current["name"] in pred, valid=all(a in ACTIONS for a in pred),
+            latency_ms=round((time.perf_counter() - t0) * 1000, 3))
+    return {"current": current, "queue": q}
 
 
 def execute(state: EditState, config: RunnableConfig) -> EditState:
@@ -191,6 +209,7 @@ def execute(state: EditState, config: RunnableConfig) -> EditState:
                                 version_before=version, version_after=new_version,
                                 stage=STAGE_OF.get(act["name"], "other"))
     out: EditState = {"step": step, "version": new_version, "current": None,
+                      "history": state.get("history", []) + [[act["name"], res.ok, act["source"]]],
                       "last_error": None if res.ok else f"{act['name']}({act['args']}) rejected: {res.error}",
                       "log": state["log"] + [f"{step:02d} {act['source']:6s} {act['name']}: "
                                              f"{'ok' if res.ok else 'REJECTED ' + (res.error or '')}"]}

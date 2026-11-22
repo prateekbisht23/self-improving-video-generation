@@ -65,3 +65,11 @@ def test_too_short_without_help_fails_cleanly(monkeypatch, synthetic, tmp_path):
     fake = FakeModel(make_plan([("S2", 0, 2)]), repairs=[])
     final, rec = run(monkeypatch, synthetic, tmp_path, fake)
     assert final["status"] == "failed" and not rec.renders
+
+
+def test_online_predictions_are_logged_for_every_action(monkeypatch, synthetic, tmp_path):
+    fake = FakeModel(make_plan([("S1", 0, 5.0), ("S4", 8, 12)], transition="fade"))
+    final, rec = run(monkeypatch, synthetic, tmp_path, fake)
+    assert [p["actual"] for p in rec.predictions] == [a["name"] for a in rec.actions]
+    assert all(p["valid"] and len(p["predicted"]) == 3 for p in rec.predictions)
+    assert rec.predictions[0]["predicted"][0] == "select_clip"  # empty timeline -> assemble first

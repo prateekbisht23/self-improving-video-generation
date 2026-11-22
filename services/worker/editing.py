@@ -96,6 +96,12 @@ class DbRecorder:
     def render(self, timeline: Timeline, version: int) -> dict:
         return render_version(self._version_ids[version])
 
+    def record_prediction(self, **f) -> None:
+        from db.models import ActionPrediction
+
+        with session_scope() as s:
+            s.add(ActionPrediction(session_id=self.session_id, mode="online", **f))
+
 
 def render_version(version_id: uuid.UUID) -> dict:
     """Render a stored timeline version (also used for re-renders: same input -> same output)."""
@@ -165,10 +171,23 @@ def run_editing_session(session_id: str) -> dict:
         ref_id = sess.reference_asset_id
         c = sess.constraints or {}
         ctx = load_edit_context(s, asset_ids, project_id)
+        # creator memory: context tags -> relevant preferences (+ record exactly which ones were used)
+        from db.models import Project
+        from memory.context import context_tags
+        from memory.retrieval import retrieve
+
+        creator_id = sess.creator_id or s.get(Project, project_id).owner_id
+        sess.creator_id = creator_id
+        tags = context_tags([{"start": x.start, "end": x.end, "speech_ratio": x.speech_ratio,
+                              "description": x.description} for x in ctx.scenes.values()], len(asset_ids),
+                            instructions)
+        prefs, dropped = retrieve(s, creator_id, tags, session_id=sid)
+        sess.context_tags = tags
+        sess.memory_used = [p.to_dict() for p in prefs] + [{"dropped": d} for d in dropped]
+        memory_lines = [p.as_prompt() for p in prefs]
     try:
         style = ensure_style_profile(ref_id) if ref_id else None
-        deps = EditDeps(ctx=ctx, recorder=DbRecorder(sid), style=style,
-                        memory=list(c.get("preferences", [])))  # Phase 4 replaces with the memory store
+        deps = EditDeps(ctx=ctx, recorder=DbRecorder(sid), style=style, memory=memory_lines)
         run_id = uuid.uuid4()  # we choose the root run id, so the DB row links to the exact trace
         with session_scope() as s:
             s.get(EditingSession, sid).trace_id = str(run_id)

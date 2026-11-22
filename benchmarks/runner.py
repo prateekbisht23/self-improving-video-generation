@@ -44,10 +44,31 @@ def benchmark_assets() -> tuple[uuid.UUID, dict[str, uuid.UUID]]:
         return p.id, ids
 
 
+# ------------------------------------------------------------------ personalization
+def seed_creator(task: BenchmarkTask) -> uuid.UUID:
+    """A fresh creator per personalization task, holding the task's preferences as explicit memory.
+    Retrieval (context filter + conflict resolution) then runs exactly as for a real creator."""
+    from db.models import CreatorPreference, User
+    from memory.storage import add_explicit
+
+    with session_scope() as s:
+        u = s.scalar(select(User).where(User.handle == f"bench-{task.id}"))
+        if u is None:
+            u = User(handle=f"bench-{task.id}", display_name=f"benchmark creator for {task.id}")
+            s.add(u)
+            s.flush()
+        for p in s.scalars(select(CreatorPreference).where(CreatorPreference.creator_id == u.id)):
+            s.delete(p)
+        s.flush()
+        for i, stmt in enumerate(task.preferences):
+            add_explicit(s, u.id, category="other", attribute=f"{task.id}_pref_{i}", value=stmt.lower()[:160],
+                         statement=stmt)
+        return u.id
+
+
 # ------------------------------------------------------------------ one task
 def run_task(task: BenchmarkTask, *, judges: bool = True) -> dict:
     from services.worker.editing import ensure_style_profile, run_editing_session
-    from services.worker.evaluation import evaluate_render
 
     project_id, assets = benchmark_assets()
     missing = [s for s in task.sources + ([task.reference] if task.reference else []) if s not in assets]
@@ -57,8 +78,9 @@ def run_task(task: BenchmarkTask, *, judges: bool = True) -> dict:
     t0 = time.perf_counter()
     if task.reference:
         ensure_style_profile(assets[task.reference])
+    creator_id = seed_creator(task) if task.preferences else None
     with session_scope() as s:
-        e = EditingSession(project_id=project_id, instructions=task.instructions,
+        e = EditingSession(project_id=project_id, instructions=task.instructions, creator_id=creator_id,
                            source_asset_ids=[str(assets[x]) for x in task.sources],
                            reference_asset_id=assets[task.reference] if task.reference else None,
                            constraints={**c.model_dump(), "preferences": task.preferences,
@@ -70,7 +92,7 @@ def run_task(task: BenchmarkTask, *, judges: bool = True) -> dict:
         out = run_editing_session(str(sid))
     except Exception as ex:
         return {"task": task.id, "session_id": str(sid), "status": "error", "error": f"{type(ex).__name__}: {ex}"[:500],
-                "seconds": round(time.perf_counter() - t0, 1)}
+                "daily_quota": "PerDay" in str(ex), "seconds": round(time.perf_counter() - t0, 1)}
     res = {"task": task.id, "category": task.category, "split": task.split, "session_id": str(sid),
            "status": out["status"], "steps": out["steps"], "log": out["log"]}
     with session_scope() as s:
@@ -79,19 +101,29 @@ def run_task(task: BenchmarkTask, *, judges: bool = True) -> dict:
         res |= {"rejected": sum(not a.ok for a in acts), "repairs": sum(a.source == "repair" for a in acts),
                 "fixups": sum(a.source == "fixup" for a in acts), "trace_id": e.trace_id, "error": e.error}
     if out.get("render_id"):
-        ev = evaluate_render(out["render_id"], judges_on=judges)
-        with session_scope() as s:
-            row = s.get(Evaluation, uuid.UUID(ev["evaluation_id"]))
-            rep = row.report
-        checks = {c["id"]: c for c in rep["checks"]}
-        res |= {"render_id": out["render_id"], "evaluation_id": ev["evaluation_id"],
-                "gate": rep["technical_gate_passed"], "pass_rate": rep["pass_rate"], "failed": rep["failed"],
-                "by_category": rep["by_category"],
-                "checks": {k: v["passed"] for k, v in checks.items()},
-                "scores": {k: v["score"] for k, v in checks.items() if v["score"] is not None},
-                "duration": next((v["measurements"].get("duration") for k, v in checks.items()
-                                  if k == "technical.duration_in_range"), None)}
+        res |= evaluation_fields(out["render_id"], judges)
     res["seconds"] = round(time.perf_counter() - t0, 1)
+    return res
+
+
+def evaluation_fields(render_id: str, judges: bool = True) -> dict:
+    from services.worker.evaluation import evaluate_render
+
+    ev = evaluate_render(render_id, judges_on=judges)
+    with session_scope() as s:
+        rep = s.get(Evaluation, uuid.UUID(ev["evaluation_id"])).report
+    checks = {c["id"]: c for c in rep["checks"]}
+    res = {"judge_errors": sum(1 for c in rep["checks"] if c["message"].startswith("judge error"))}
+    if res["judge_errors"] and any("PerDay" in c["message"] or "RESOURCE_EXHAUSTED" in c["message"]
+                                   for c in rep["checks"]):
+        res["daily_quota"] = True
+    res |= {"render_id": render_id, "evaluation_id": ev["evaluation_id"],
+            "gate": rep["technical_gate_passed"], "pass_rate": rep["pass_rate"], "failed": rep["failed"],
+            "by_category": rep["by_category"],
+            "checks": {k: v["passed"] for k, v in checks.items()},
+            "scores": {k: v["score"] for k, v in checks.items() if v["score"] is not None},
+            "duration": next((v["measurements"].get("duration") for k, v in checks.items()
+                              if k == "technical.duration_in_range"), None)}
     return res
 
 
@@ -268,14 +300,25 @@ def main() -> None:
         path = RESULTS / f"{rid}.json"
     done = {r["task"] for r in run["results"] if r.get("status") != "error"}
     run["results"] = [r for r in run["results"] if r["task"] in done]
+    for r in run["results"]:  # judges failed (e.g. quota) on an otherwise finished task: re-evaluate only
+        if r.get("judge_errors") and r.get("render_id"):
+            print(f"re-evaluating {r['task']} (judge errors: {r['judge_errors']})", flush=True)
+            r.update(evaluation_fields(r["render_id"], not a.no_judges))
+            if r.get("daily_quota"):
+                path.write_text(json.dumps(run, indent=2))
+                raise SystemExit(f"daily model quota still exhausted; resume later with --resume {path}")
     for i, t in enumerate(tasks, 1):
         if t.id in done:
             continue
         print(f"[{i}/{len(tasks)}] {t.id} ({t.category}) ...", flush=True)
         r = run_task(t, judges=not a.no_judges)
+        run["results"].append(r)
+        if r.get("daily_quota"):
+            # daily model quota: every later task would fail the same way; stop and keep progress
+            path.write_text(json.dumps(run, indent=2))
+            raise SystemExit(f"daily model quota exhausted at {t.id}; resume later with --resume {path}")
         print(f"    -> {r['status']} gate={r.get('gate')} pass_rate={r.get('pass_rate')} "
               f"repairs={r.get('repairs')} {r['seconds']}s failed={r.get('failed')}", flush=True)
-        run["results"].append(r)
         run["summary"] = summarize(run["results"])
         path.write_text(json.dumps(run, indent=2))
     run["summary"] = summarize(run["results"])

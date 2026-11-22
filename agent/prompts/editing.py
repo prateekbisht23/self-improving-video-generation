@@ -19,6 +19,8 @@ no clip starts or ends mid-word. Add ~0.1s of padding inside the scene when poss
 - Skip title cards, slates and dead air unless the instructions want them.
 - Follow the style guide when given (shot length, captions, colour, transitions); instructions win \
 if they conflict.
+- Follow the creator preferences: they are standing rules for this creator. The instructions for \
+this video win if they conflict.
 - Clips may come from any order in the source; arrange them for the story."""
 
 PLANNER_HUMAN = """INSTRUCTIONS:

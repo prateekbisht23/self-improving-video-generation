@@ -21,6 +21,7 @@ class EditPlan(BaseModel):
     transition: Literal["cut", "fade", "dissolve"] = Field(description="transition between clips")
     captions: bool = Field(description="burn in word-synced captions of the speech")
     caption_position: Position
+    caption_uppercase: bool = Field(default=False, description="captions in ALL CAPS")
     title: str | None = Field(default=None, description="short on-screen title for the opening, or null")
     color: ColorPreset = Field(description="overall colour look")
     estimated_duration: float = Field(description="sum of clip durations in seconds")

@@ -18,3 +18,4 @@ class EvalInput(BaseModel):
     timeline: dict | None = None                            # the edit decision list (structure only)
     source_words: dict[str, list[tuple[float, float, str]]] = Field(default_factory=dict)  # asset -> words
     reference: dict | None = None                           # reference style profile, if any
+    preferences: list[str] = Field(default_factory=list)    # creator preferences the edit should respect

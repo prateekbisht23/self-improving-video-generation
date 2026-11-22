@@ -6,17 +6,18 @@ from sqlalchemy import text
 
 from config.settings import get_settings
 from db.session import get_engine
-from services.api.routes import assets, edits, projects, search
+from services.api.routes import assets, edits, memory, projects, search
 
 get_settings()  # export .env for SDKs used in request handlers (embeddings for search)
 
-app = FastAPI(title="Self-Improving Video Editing Agent", version="0.3.0")
+app = FastAPI(title="Self-Improving Video Editing Agent", version="0.4.0")
 app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:3000"],
                    allow_methods=["*"], allow_headers=["*"])
 app.include_router(projects.router)
 app.include_router(assets.router)
 app.include_router(search.router)
 app.include_router(edits.router)
+app.include_router(memory.router)
 
 
 @app.get("/health")

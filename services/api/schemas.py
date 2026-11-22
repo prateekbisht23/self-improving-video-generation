@@ -138,6 +138,9 @@ class EditOut(ORM):
 
 class EditDetail(EditOut):
     source_asset_ids: list[str]
+    creator_id: uuid.UUID | None
+    context_tags: list[str] | None
+    memory_used: list | None
     agent_config: dict | None
     plan: dict | None
     versions: list[VersionOut]

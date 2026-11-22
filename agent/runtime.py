@@ -17,6 +17,7 @@ class Recorder(Protocol):
     def save_version(self, timeline: Timeline, version: int, created_by: str) -> None: ...
     def record_action(self, **fields: Any) -> None: ...
     def render(self, timeline: Timeline, version: int) -> dict: ...
+    def record_prediction(self, **fields: Any) -> None: ...
 
 
 @dataclass
@@ -27,6 +28,10 @@ class InMemoryRecorder:
     versions: dict[int, Timeline] = field(default_factory=dict)
     actions: list[dict] = field(default_factory=list)
     renders: list[dict] = field(default_factory=list)
+    predictions: list[dict] = field(default_factory=list)
+
+    def record_prediction(self, **fields):
+        self.predictions.append(fields)
 
     def save_plan(self, plan):
         self.plan = plan

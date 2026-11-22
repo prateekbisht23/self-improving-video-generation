@@ -28,6 +28,8 @@ dependencies = [
   "pgvector>=0.5.1",
   "python-multipart>=0.0.34",
   "jiwer>=4.0.0",
+  "langgraph-checkpoint-postgres>=3.2.1",
+  "scikit-learn>=1.9.1",
 ]
 
 [project.optional-dependencies]

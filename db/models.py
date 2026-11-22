@@ -212,6 +212,9 @@ class EditingSession(TimestampMixin, Base):
     plan: Mapped[dict | None]                 # the structured EditPlan the planner produced
     error: Mapped[str | None] = mapped_column(Text)
     trace_id: Mapped[str | None] = mapped_column(String(64))  # LangSmith root run id
+    creator_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"))
+    context_tags: Mapped[list[str] | None] = mapped_column(ARRAY(String(48)))
+    memory_used: Mapped[list | None] = mapped_column(JSONB)  # preferences that shaped this session
 
     versions: Mapped[list["TimelineVersion"]] = relationship(
         back_populates="session", cascade="all, delete-orphan", order_by="TimelineVersion.version")
@@ -332,3 +335,118 @@ class EvaluationIssue(Base):
     end: Mapped[float | None]
 
     evaluation: Mapped[Evaluation] = relationship(back_populates="issues")
+
+
+# ============================================================ Phase 4: creator memory + prediction
+class PreferenceSource(enum.StrEnum):
+    explicit = "explicit"      # the creator stated it directly (settings / API)
+    feedback = "feedback"      # extracted from feedback on an edit
+    inferred = "inferred"      # inferred from behaviour (e.g. repeated manual corrections)
+
+
+class PreferenceStatus(enum.StrEnum):
+    candidate = "candidate"    # seen, not trusted yet: never applied
+    active = "active"          # applied when relevant
+    session = "session"        # applies only to one editing session
+    rejected = "rejected"      # creator said no: never applied, not re-proposed
+    stale = "stale"            # contradicted; needs confirmation before use again
+
+
+class CreatorPreference(TimestampMixin, Base):
+    __tablename__ = "creator_preferences"
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    creator_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    category: Mapped[str] = mapped_column(String(32), index=True)   # captions, color, pacing, duration, ...
+    attribute: Mapped[str] = mapped_column(String(64), index=True)  # normalised key, e.g. caption_position
+    value: Mapped[str] = mapped_column(String(160))                 # e.g. "top"; conflicts = same attr, other value
+    statement: Mapped[str] = mapped_column(Text)                    # "Captions in ALL CAPS at the top"
+    context: Mapped[list[str]] = mapped_column(ARRAY(String(48)), default=list)  # [] = applies everywhere
+    source: Mapped[PreferenceSource] = mapped_column(Enum(PreferenceSource, name="preference_source"))
+    status: Mapped[PreferenceStatus] = mapped_column(Enum(PreferenceStatus, name="preference_status"))
+    confidence: Mapped[float]
+    support_count: Mapped[int] = mapped_column(default=1)
+    contradict_count: Mapped[int] = mapped_column(default=0)
+    session_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("editing_sessions.id", ondelete="CASCADE"))
+    evidence: Mapped[list] = mapped_column(JSONB, default=list)    # [{feedback_id, session_id, quote}]
+    last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    confirmed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    embedding: Mapped[list[float] | None] = mapped_column(Vector(EMBED_DIM))
+
+    events: Mapped[list["PreferenceEvent"]] = relationship(back_populates="preference", cascade="all, delete-orphan",
+                                                           order_by="PreferenceEvent.id")
+
+
+class PreferenceEvent(Base):
+    """Audit log: every change to a preference and why (FR-08: updates are auditable)."""
+
+    __tablename__ = "preference_events"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    preference_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("creator_preferences.id", ondelete="CASCADE"),
+                                                     index=True)
+    kind: Mapped[str] = mapped_column(String(24))  # created, reinforced, contradicted, confirmed, rejected, edited
+    detail: Mapped[dict] = mapped_column(JSONB, default=dict)
+    confidence_before: Mapped[float | None]
+    confidence_after: Mapped[float | None]
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+    preference: Mapped[CreatorPreference] = relationship(back_populates="events")
+
+
+class FeedbackKind(enum.StrEnum):
+    accept = "accept"
+    reject = "reject"
+    choose = "choose"              # picked one of two renders
+    comment = "comment"            # free text
+    timestamp_issue = "timestamp_issue"
+    correction = "correction"      # "the captions should be at the top"
+
+
+class Feedback(Base):
+    __tablename__ = "feedback"
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    session_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("editing_sessions.id", ondelete="CASCADE"), index=True)
+    creator_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    timeline_version: Mapped[int | None]
+    render_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("renders.id"))
+    kind: Mapped[FeedbackKind] = mapped_column(Enum(FeedbackKind, name="feedback_kind"))
+    text: Mapped[str | None] = mapped_column(Text)
+    start: Mapped[float | None]
+    end: Mapped[float | None]
+    chosen_render_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("renders.id"))
+    other_render_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("renders.id"))
+    processed: Mapped[dict | None] = mapped_column(JSONB)  # memory-graph outcome
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class MemoryConfirmation(Base):
+    """A question the memory graph is waiting on (a LangGraph interrupt, resumable by thread_id)."""
+
+    __tablename__ = "memory_confirmations"
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    thread_id: Mapped[str] = mapped_column(String(64), index=True)
+    creator_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    preference_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("creator_preferences.id", ondelete="CASCADE"))
+    question: Mapped[str] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(String(16), default="pending")  # pending | answered
+    answer: Mapped[dict | None] = mapped_column(JSONB)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class ActionPrediction(Base):
+    """A next-action prediction and the action that actually happened (FR-07: results stored)."""
+
+    __tablename__ = "action_predictions"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    session_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("editing_sessions.id", ondelete="CASCADE"),
+                                                         index=True)
+    step: Mapped[int]
+    predictor: Mapped[str] = mapped_column(String(48))  # rules-v1 | llm:<model> | learned:<hash>
+    mode: Mapped[str] = mapped_column(String(16))       # online | offline
+    predicted: Mapped[list[str]] = mapped_column(ARRAY(String(48)))
+    actual: Mapped[str] = mapped_column(String(48))
+    stage: Mapped[str | None] = mapped_column(String(32))
+    correct_top1: Mapped[bool]
+    correct_top3: Mapped[bool]
+    valid: Mapped[bool]
+    latency_ms: Mapped[float]
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)

@@ -8,7 +8,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
 
-EVALUATOR_VERSION = "eval-1.0"
+EVALUATOR_VERSION = "eval-1.1"  # 1.1: + instruction.preference_satisfaction
 
 Category = Literal["technical", "instruction", "temporal", "captions", "style", "narrative", "visual"]
 Kind = Literal["deterministic", "signal", "model"]

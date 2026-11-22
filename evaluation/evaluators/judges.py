@@ -2,6 +2,7 @@
 instructions and the rendered output (transcript of its audio + sampled frames), never the plan."""
 
 import base64
+from typing import Literal
 
 from langchain_core.messages import HumanMessage, SystemMessage
 from pydantic import BaseModel, Field
@@ -14,7 +15,9 @@ from perception.style import contact_sheet
 
 
 class Requirement(BaseModel):
-    requirement: str = Field(description="one concrete requirement from the instructions")
+    requirement: str = Field(description="one concrete requirement from the instructions or preferences")
+    source: Literal["instructions", "preference"] = Field(default="instructions",
+                                                          description="where the requirement comes from")
     met: bool
     timestamp: float | None = Field(default=None, description="seconds in the video where this is (not) met")
     evidence: str = Field(description="what in the transcript/frames shows this")
@@ -74,23 +77,33 @@ def _image(f: RenderFeatures) -> dict:
     return {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{b64}"}}
 
 
-def instruction_adherence(f: RenderFeatures, x: EvalInput) -> CheckResult:
+def instruction_adherence(f: RenderFeatures, x: EvalInput) -> list[CheckResult]:
+    prefs = "\n".join(f"- {p}" for p in x.preferences) or "(none)"
     v: InstructionVerdict = get_chat_model("judge").with_structured_output(InstructionVerdict).invoke([
         SystemMessage(JUDGE_SYSTEM + " List every concrete requirement in the instructions (content, order, "
-                                     "duration, captions, tone) and decide if the video meets each."),
+                                     "duration, captions, tone) and in the creator's standing preferences "
+                                     "(mark those source='preference'), and decide if the video meets each."),
         HumanMessage(content=[
-            {"type": "text", "text": f"INSTRUCTIONS:\n{x.instructions}\n\nVIDEO: {f.duration:.1f}s, "
+            {"type": "text", "text": f"INSTRUCTIONS:\n{x.instructions}\n\nCREATOR PREFERENCES:\n{prefs}\n\n"
+                                     f"VIDEO: {f.duration:.1f}s, "
                                      f"{f.width}x{f.height}.\nTRANSCRIPT OF ITS AUDIO:\n{transcript_lines(f)}\n\n"
                                      "FRAMES (timestamps in yellow):"}, _image(f)])])
-    met = [r for r in v.requirements if r.met]
-    score = len(met) / len(v.requirements) if v.requirements else None
-    return CheckResult(id="instruction.adherence", category="instruction", kind="model",
-                       passed=bool(v.requirements) and len(met) == len(v.requirements), severity="major",
-                       score=round(score, 3) if score is not None else None,
-                       message=f"{len(met)}/{len(v.requirements)} requirements met", explanation=v.explanation,
-                       evidence=[Evidence(start=r.timestamp, end=r.timestamp, detail=f"{'MET' if r.met else 'UNMET'}: "
-                                          f"{r.requirement} — {r.evidence}") for r in v.requirements],
-                       measurements={"requirements": [r.model_dump() for r in v.requirements]})
+    out = []
+    for cid, reqs in (("instruction.adherence", [r for r in v.requirements if r.source == "instructions"]),
+                      ("instruction.preference_satisfaction", [r for r in v.requirements if r.source == "preference"])):
+        if cid.endswith("satisfaction") and not x.preferences:
+            continue
+        met = [r for r in reqs if r.met]
+        score = len(met) / len(reqs) if reqs else None
+        out.append(CheckResult(
+            id=cid, category="instruction", kind="model", passed=(len(met) == len(reqs)) if reqs else None,
+            severity="major", score=round(score, 3) if score is not None else None,
+            message=f"{len(met)}/{len(reqs)} {'preferences' if 'pref' in cid else 'requirements'} met",
+            explanation=v.explanation,
+            evidence=[Evidence(start=r.timestamp, end=r.timestamp, detail=f"{'MET' if r.met else 'UNMET'}: "
+                               f"{r.requirement} — {r.evidence}") for r in reqs],
+            measurements={"requirements": [r.model_dump() for r in reqs]}))
+    return out
 
 
 def narrative(f: RenderFeatures, x: EvalInput) -> CheckResult:

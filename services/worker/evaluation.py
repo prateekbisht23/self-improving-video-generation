@@ -31,7 +31,8 @@ def build_eval_input(s, render: Render) -> EvalInput:
                      min_duration=c.get("min_duration", 15), max_duration=c.get("max_duration", 30),
                      aspect_ratio=c.get("aspect_ratio", "9:16"), captions_required=c.get("captions_required"),
                      must_include=c.get("must_include", []), must_exclude=c.get("must_exclude", []),
-                     timeline=tl, source_words=words, reference=reference)
+                     timeline=tl, source_words=words, reference=reference,
+                     preferences=[m["statement"] for m in (e.memory_used or []) if "statement" in m])
 
 
 def evaluate_render(render_id: uuid.UUID | str, *, judges_on: bool | None = None) -> dict:
