@@ -43,3 +43,23 @@ Every command is built as an **argv list** and run without a shell (`subprocess.
 2. Find the silence yourself: `ffmpeg -i samples/synthetic/silence.mp4 -af silencedetect=noise=-35dB:d=0.5 -f null - 2>&1 | grep silence_`
 3. Find the black segment: `ffmpeg -i samples/synthetic/black_gap.mp4 -vf blackdetect=d=0.5 -an -f null - 2>&1 | grep black_`
 4. Make a 9:16 crop preview (Phase 2 preview): `ffmpeg -i samples/synthetic/cuts.mp4 -vf "crop=ih*9/16:ih,scale=540:960" -t 5 /tmp/vertical.mp4`
+
+## Text and captions need an ffmpeg built with libass and freetype
+The core Homebrew `ffmpeg` here was built without `drawtext` (needs freetype) or `subtitles` / `ass` (need libass). Check yours:
+```bash
+ffmpeg -hide_banner -filters | grep -E ' (drawtext|subtitles|ass) '
+```
+This project uses the `homebrew-ffmpeg` tap build, which includes freetype, fontconfig, harfbuzz and libass by default:
+```bash
+brew uninstall ffmpeg
+brew tap homebrew-ffmpeg/ffmpeg
+brew trust --formula homebrew-ffmpeg/ffmpeg/ffmpeg   # newer Homebrew requires trusting third-party formulae
+brew install homebrew-ffmpeg/ffmpeg/ffmpeg           # builds from source
+```
+Quick check, which burns a caption into a 9:16 crop:
+```bash
+printf '1\n00:00:00,500 --> 00:00:03,000\nCaptions work now\n' > /tmp/t.srt
+ffmpeg -ss 20 -t 3 -i samples/nasa_interview.mp4 \
+  -vf "crop=ih*9/16:ih,scale=540:960,subtitles=/tmp/t.srt:force_style='FontSize=18,Bold=1,Outline=2'" \
+  -ss 1.5 -frames:v 1 /tmp/cap.jpg
+```

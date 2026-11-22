@@ -10,6 +10,8 @@ A multimodal agent that turns raw footage plus natural-language instructions int
 Python 3.12 · FastAPI · LangChain · LangGraph · LangSmith · FFmpeg · PySceneDetect · faster-whisper · PostgreSQL · Redis + RQ · Next.js · Ollama (local models by default)
 
 ## Quickstart
+Requires an ffmpeg with libass/freetype for captions (see [`docs/learn/01-ffmpeg-ffprobe.md`](docs/learn/01-ffmpeg-ffprobe.md)).
+
 ```bash
 cp .env.example .env            # add LANGSMITH_API_KEY
 docker compose up -d            # Postgres :5433, Redis :6380
