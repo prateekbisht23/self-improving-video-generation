@@ -59,5 +59,5 @@ Sample footage credits: see [`samples/manifest.yaml`](samples/manifest.yaml).
 | 2 | Editing agent & FFmpeg renderer | done |
 | 3 | Independent evaluation engine | done |
 | 4 | Creator memory & predictive editing | done |
-| 5 | Failure diagnosis & self-improvement | planned |
+| 5 | Failure diagnosis & self-improvement | in progress |
 | 6 | Frontend, integration & demo | planned |

@@ -40,6 +40,26 @@ def find_run(version: str, splits: list[str], n_tasks: int) -> Path | None:
     return None
 
 
+def run_pair(baseline: str, candidate: str, tasks: list[BenchmarkTask], splits: list[str],
+             bpath: Path, cpath: Path) -> tuple[Path, Path]:
+    """Run baseline and candidate INTERLEAVED, task by task (order alternates: B,C then C,B ...).
+
+    Provider conditions drift during a day (load, 503 retries, quota pressure). Run back to back,
+    the candidate gets the later, worse hours and every check moves together; round 2 saw a no-op
+    knob "regress" temporal.repeated_footage on 6 tasks it cannot affect. Interleaving gives both
+    versions the same conditions. A fresh baseline is run each time (no reuse) for the same reason.
+    Each call appends one task to the results file, so a run stopped by quota resumes where it stopped.
+    """
+    EXPERIMENTS.mkdir(parents=True, exist_ok=True)
+    for i, t in enumerate(tasks):
+        order = [(baseline, bpath), (candidate, cpath)]
+        for version, path in (order if i % 2 == 0 else order[::-1]):
+            run_benchmark([t], splits=splits, agent_version=version, path=path, langsmith=False)
+    for version, path in ((baseline, bpath), (candidate, cpath)):  # all done: summary + LangSmith experiment
+        run_benchmark(tasks, splits=splits, agent_version=version, path=path)
+    return bpath, cpath
+
+
 def run_version(version: str, tasks: list[BenchmarkTask], splits: list[str], path: Path) -> tuple[dict, Path]:
     """Reuse a comparable run, else run (or resume) into `path`."""
     found = find_run(version, splits, len(tasks))

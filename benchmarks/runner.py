@@ -341,6 +341,7 @@ def run_benchmark(tasks: list[BenchmarkTask], *, splits: list[str], agent_versio
     for r in run["results"]:  # judges failed (e.g. quota) on an otherwise finished task: re-evaluate only
         if r.get("judge_errors") and r.get("render_id"):
             print(f"re-evaluating {r['task']} (judge errors: {r['judge_errors']})", flush=True)
+            r.pop("daily_quota", None)  # stale flag from the failed attempt; the re-evaluation decides anew
             r.update(evaluation_fields(r["render_id"], judges))
             if r.get("daily_quota"):
                 path.write_text(json.dumps(run, indent=2))

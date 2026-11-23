@@ -141,3 +141,55 @@ def test_only_the_holdout_assessment_module_may_load_holdout_tasks():
             if isinstance(node, ast.Constant) and node.value == "holdout":
                 offenders.append(str(path.relative_to(ROOT)))
     assert set(offenders) == {"improvement/experiments/holdout.py"}, offenders
+
+
+class _Seq:
+    """Structured-output fake that returns the given proposals in order and records messages."""
+
+    def __init__(self, *answers):
+        self.answers, self.seen = list(answers), []
+
+    def with_structured_output(self, schema):
+        outer = self
+
+        class _S:
+            def invoke(self, messages):
+                outer.seen.append(list(messages))
+                return outer.answers.pop(0)
+        return _S()
+
+
+def _proposal(hyp, **knobs):
+    return CandidateProposal(hypothesis=hyp, target_checks=["temporal.cut_through_word"],
+                             policy_changes=PolicyChanges(**knobs), expected_effect="+", risks="-")
+
+
+def test_proposal_whose_text_and_fields_disagree_is_sent_back():
+    from improvement.candidates.generate import propose
+
+    bad = _proposal("set snap_cuts to word and captions_follow_reference", captions_follow_reference=True)
+    good = _proposal("set snap_cuts to word and captions_follow_reference", captions_follow_reference=True,
+                     snap_cuts="word")
+    m = _Seq(bad, good)
+    assert propose([], DEFAULT_CONFIG, m) is good
+    assert "snap_cuts" in m.seen[1][-1].content  # the correction names the missing knob
+
+
+def test_proposal_that_stays_inconsistent_fails_loudly():
+    from improvement.candidates.generate import InconsistentProposal, propose
+
+    bad = _proposal("use snap_cuts=word")
+    with pytest.raises(InconsistentProposal):
+        propose([], DEFAULT_CONFIG, _Seq(bad, bad), attempts=2)
+
+
+def test_experiment_runs_versions_interleaved(monkeypatch, tmp_path):
+    from improvement.experiments import run as run_mod
+
+    calls = []
+    monkeypatch.setattr(run_mod, "EXPERIMENTS", tmp_path)
+    monkeypatch.setattr(run_mod, "run_benchmark",
+                        lambda tasks, splits, agent_version, path, **kw: calls.append((agent_version, len(tasks))))
+    tasks = [type("T", (), {"id": i})() for i in range(3)]
+    run_mod.run_pair("B", "C", tasks, ["development"], tmp_path / "b.json", tmp_path / "c.json")
+    assert calls == [("B", 1), ("C", 1), ("C", 1), ("B", 1), ("B", 1), ("C", 1), ("B", 3), ("C", 3)]

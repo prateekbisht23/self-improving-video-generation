@@ -10,7 +10,7 @@ baseline row is never modified.
 import json
 from typing import Any
 
-from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from pydantic import BaseModel, Field, create_model
 
 from agent.config import AgentConfig, AgentPolicy
@@ -85,15 +85,31 @@ def experiment_history(s, baseline_version: str) -> list[dict]:
     return out
 
 
-def propose(diagnoses: list[dict], base: AgentConfig, model=None, history: list[dict] | None = None
-            ) -> CandidateProposal:
+class InconsistentProposal(ValueError):
+    """The proposal's text describes knob changes that its structured fields do not make."""
+
+
+def unset_knobs(p: CandidateProposal, base: AgentConfig) -> list[str]:
+    """Knobs named in the hypothesis / expected effect that the proposal does not actually change.
+
+    Round 2 hypothesised "snap_cuts to word with snap_repairs to word" but left both fields null, so
+    the experiment tested a different candidate than the one described. Structured output guarantees
+    the shape of the answer, not that its parts agree with each other."""
+    text = f"{p.hypothesis} {p.expected_effect}".lower()
+    changed = {k for k, v in p.policy_changes.model_dump().items()
+               if v is not None and v != getattr(base.policy, k)}
+    return [k for k in AgentPolicy.model_fields if k in text and k not in changed]
+
+
+def propose(diagnoses: list[dict], base: AgentConfig, model=None, history: list[dict] | None = None,
+            attempts: int = 3) -> CandidateProposal:
     if model is None:
         from config.models import get_chat_model
 
         model = get_chat_model("improver")
     knobs = {n: {"current": getattr(base.policy, n), "type": str(f.annotation), "description": f.description}
              for n, f in AgentPolicy.model_fields.items()}
-    return model.with_structured_output(CandidateProposal).invoke([
+    messages = [
         SystemMessage(PROPOSE_SYSTEM),
         HumanMessage("POLICY KNOBS:\n" + json.dumps(knobs, indent=1)
                      + "\n\nCURRENT PROMPT ADDITIONS:\n" + json.dumps({"planner": base.planner_addendum,
@@ -103,7 +119,18 @@ def propose(diagnoses: list[dict], base: AgentConfig, model=None, history: list[
                      + "\n\nPREVIOUS EXPERIMENTS AGAINST THIS BASELINE (learn from them; do not repeat a "
                        "rejected configuration):\n" + (json.dumps(history, indent=1, default=str)[:12000]
                                                          if history else "(none)")),
-    ])
+    ]
+    structured = model.with_structured_output(CandidateProposal)
+    for _ in range(attempts):
+        p = structured.invoke(messages)
+        missing = unset_knobs(p, base)
+        if not missing:
+            return p
+        messages += [AIMessage(p.model_dump_json()), HumanMessage(
+            f"Your hypothesis/expected_effect mention {missing}, but policy_changes does not change them "
+            f"(null or equal to the current value). Return the full proposal again with policy_changes "
+            f"setting every knob you intend to change, or remove the knob from the text if you do not.")]
+    raise InconsistentProposal(f"proposal text mentions {missing} but does not change them: {p.hypothesis}")
 
 
 def build_candidate(base: AgentConfig, p: CandidateProposal, allowed_targets: set[str] | None = None,

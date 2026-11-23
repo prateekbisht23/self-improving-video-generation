@@ -83,3 +83,25 @@ Invariants added:
 - rejected preferences are never re-proposed; session-scoped feedback never leaves its session;
 - every preference change is an event with its evidence (feedback id, quote);
 - holdout benchmark sessions are never used to train or evaluate predictors.
+
+## Phase 5 additions
+```
+agent_versions (registry: config JSON + hash; one active) ─► worker / benchmark runner pin a version per session
+
+improvement graph (LangGraph + PostgresSaver, thread improve-<uuid>)
+  collect      evaluation_issues + unrendered sessions of the active version, development split only
+  diagnose     rule clusters ─► embedding sub-clusters ─► evidence + probes (edge origin, captions,
+               duration, counterfactual snap replay) ─► improver model ─► Diagnosis (root causes)
+  propose      diagnoses + experiment history ─► CandidateProposal (knob values + prompt addenda only)
+  experiment   baseline vs candidate on development + validation, interleaved per task (creator isolation)
+  gates        paired comparison + bootstrap CI ─► critical / regression / improvement gates
+  final_assessment   holdout, only after gates pass (improvement/experiments/holdout.py is the only reader)
+  approval     interrupt() ─► CLI `approve|decline` or POST /improvement/experiments/{id}/decision
+  decide       registry.promote(): retire old, activate new, promotions row, agent/configs/<version>.json
+```
+Invariants added:
+- the improvement loop changes configuration (knobs, prompt addenda), never code;
+- diagnosis reads development only; holdout is read only by `holdout.py` (AST-enforced test);
+- runs are compared only when version, evaluator, dataset, splits, models and creator isolation match;
+- promotion needs a human decision, passed gates, and an unchanged active baseline;
+- editing and evaluation graphs compile with `checkpointer=False` so a resumed parent never replays them.

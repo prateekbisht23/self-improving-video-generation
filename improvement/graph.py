@@ -37,7 +37,7 @@ from improvement.collection import collect
 from improvement.diagnosis.diagnose import diagnose, gather_evidence
 from improvement.experiments import holdout as holdout_mod
 from improvement.experiments.compare import compare
-from improvement.experiments.run import EXPERIMENTS, run_version
+from improvement.experiments.run import EXPERIMENTS, run_pair
 from improvement.promotion.gates import advisory_checks, evaluate_gates
 from improvement.promotion.report import write_report
 
@@ -49,7 +49,7 @@ class ImproveDeps:
     """Injectable side effects (tests swap in fakes)."""
     model: Any = None                      # improver chat model (None = config/models.py)
     embed: Any = "default"                 # texts -> vectors; None disables semantic clustering
-    run_version: Any = run_version
+    run_pair: Any = run_pair               # (baseline, candidate, tasks, splits, bpath, cpath) -> paths
     assess: Any = holdout_mod.assess
     advisory: dict = field(default_factory=advisory_checks)
 
@@ -183,10 +183,9 @@ def experiment_node(state: ImproveState, config) -> ImproveState:
     tag = state["experiment_id"][:8]
     with session_scope() as s:
         s.get(Experiment, uuid.UUID(state["experiment_id"])).status = "running"
-    _, bpath = deps.run_version(state["baseline_version"], tasks, SELECTION_SPLITS,
-                                EXPERIMENTS / f"{tag}-baseline-dev-val.json")
-    _, cpath = deps.run_version(state["candidate_version"], tasks, SELECTION_SPLITS,
-                                EXPERIMENTS / f"{tag}-candidate-dev-val.json")
+    bpath, cpath = deps.run_pair(state["baseline_version"], state["candidate_version"], tasks, SELECTION_SPLITS,
+                                 EXPERIMENTS / f"{tag}-baseline-dev-val.json",
+                                 EXPERIMENTS / f"{tag}-candidate-dev-val.json")
     with session_scope() as s:
         exp = s.get(Experiment, uuid.UUID(state["experiment_id"]))
         exp.baseline_run, exp.candidate_run = str(bpath), str(cpath)

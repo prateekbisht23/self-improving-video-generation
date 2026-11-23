@@ -107,6 +107,14 @@ def fake_run(improve_cut: bool):
     return run
 
 
+def fake_pair(improve_cut: bool):
+    run = fake_run(improve_cut)
+
+    def pair(baseline, candidate, tasks, splits, bpath, cpath):
+        return run(baseline, tasks, splits, bpath)[1], run(candidate, tasks, splits, cpath)[1]
+    return pair
+
+
 @pytest.fixture
 def deps(tmp_path, monkeypatch):
     monkeypatch.setattr(ig, "EXPERIMENTS", tmp_path / "experiments")
@@ -121,7 +129,7 @@ def deps(tmp_path, monkeypatch):
             return {"metrics": {"mean_pass_rate": {"baseline": 0.8, "candidate": 0.85, "delta": 0.05}},
                     "paired": {"mean_diff": 0.05, "ci95": [0.01, 0.09], "wins": 5, "ties": 1, "losses": 0},
                     "checks": {}, "newly_failed": [], "newly_rendered": []}
-        d = ig.ImproveDeps(model=Scripted(), embed=None, run_version=fake_run(improve_cut), assess=assess,
+        d = ig.ImproveDeps(model=Scripted(), embed=None, run_pair=fake_pair(improve_cut), assess=assess,
                            advisory={})
         d.assessed = assessed
         return d
