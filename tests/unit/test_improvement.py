@@ -193,3 +193,11 @@ def test_experiment_runs_versions_interleaved(monkeypatch, tmp_path):
     tasks = [type("T", (), {"id": i})() for i in range(3)]
     run_mod.run_pair("B", "C", tasks, ["development"], tmp_path / "b.json", tmp_path / "c.json")
     assert calls == [("B", 1), ("C", 1), ("C", 1), ("B", 1), ("B", 1), ("C", 1), ("B", 3), ("C", 3)]
+
+
+def test_only_transient_provider_errors_are_retried():
+    from improvement.graph import transient
+
+    assert transient(RuntimeError("503 UNAVAILABLE. This model is currently experiencing high demand"))
+    assert not transient(RuntimeError("429 RESOURCE_EXHAUSTED GenerateRequestsPerDayPerProjectPerModel 503"))
+    assert not transient(ValueError("proposal targets [] none of which were diagnosed"))

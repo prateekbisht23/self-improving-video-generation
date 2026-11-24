@@ -21,7 +21,7 @@ from datetime import UTC, datetime
 from typing import Any, TypedDict
 
 from langgraph.graph import END, START, StateGraph
-from langgraph.types import Command, interrupt
+from langgraph.types import Command, RetryPolicy, interrupt
 from sqlalchemy import select
 
 from agent.config import AgentConfig
@@ -275,12 +275,24 @@ def _write(s, exp: Experiment):
 
 
 # ------------------------------------------------------------------ graph
+def transient(ex: Exception) -> bool:
+    """Provider overload / timeouts: worth retrying. A spent daily quota is not (it fails until the reset)."""
+    msg = str(ex)
+    return "PerDay" not in msg and any(k in msg for k in ("503", "UNAVAILABLE", "high demand", "Timeout", "timed out"))
+
+
+# model-calling nodes retry a 503 themselves (round 3 died in `diagnose` on one). Node writes happen in
+# one DB transaction that rolls back on error, so re-running the whole node is safe.
+MODEL_RETRY = RetryPolicy(initial_interval=30.0, backoff_factor=2.0, max_interval=300.0, max_attempts=4,
+                          retry_on=transient)
+
+
 def build_graph(checkpointer=None):
     g = StateGraph(ImproveState)
     for name, fn in [("collect", collect_node), ("diagnose", diagnose_node), ("propose", propose_node),
                      ("experiment", experiment_node), ("gates", gates_node), ("final_assessment", holdout_node),
                      ("approval", approval_node), ("decide", decide_node), ("reject", reject_node)]:
-        g.add_node(name, fn)
+        g.add_node(name, fn, retry_policy=MODEL_RETRY if name in ("diagnose", "propose") else None)
     g.add_edge(START, "collect")
     g.add_edge("collect", "diagnose")
     g.add_edge("diagnose", "propose")
