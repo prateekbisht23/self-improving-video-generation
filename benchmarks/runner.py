@@ -33,6 +33,22 @@ PROJECT_TITLE = "Benchmark v1"
 DATASET = "sivg-bench"
 
 
+def code_revision() -> str:
+    """git commit of the code that produced a run (+ '-dirty' with uncommitted changes). An agent
+    version names a CONFIG; a code fix to a knob's behaviour keeps the name, so runs record this too."""
+    import subprocess
+
+    root = Path(__file__).resolve().parents[1]
+    try:
+        sha = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=root, capture_output=True, text=True,
+                             check=True).stdout.strip()
+        dirty = subprocess.run(["git", "status", "--porcelain", "--untracked-files=no"], cwd=root,
+                               capture_output=True, text=True).stdout.strip()
+        return sha + ("-dirty" if dirty else "")
+    except (OSError, subprocess.CalledProcessError):
+        return "unknown"
+
+
 class QuotaExhausted(RuntimeError):
     """The model provider's DAILY quota ran out: every further task would fail the same way."""
 
@@ -332,7 +348,7 @@ def run_benchmark(tasks: list[BenchmarkTask], *, splits: list[str], agent_versio
         run = {"run_id": path.stem if path else rid, "agent_version": version,
                "evaluator_version": EVALUATOR_VERSION,
                "dataset_version": dataset_version(), "splits": splits, "judges": judges,
-               "creator_isolation": True,
+               "creator_isolation": True, "code_revision": code_revision(),
                "models": {r: model_id(r) for r in ("planner", "vision", "judge", "embeddings")},
                "started": datetime.now(UTC).isoformat(timespec="seconds"), "results": []}
         path = path or RESULTS / f"{rid}.json"

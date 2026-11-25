@@ -198,3 +198,24 @@ def test_snap_repairs_word_keeps_repair_trims_close_to_what_was_asked(monkeypatc
     deps.config = AgentConfig(policy=AgentPolicy(snap_cuts="sentence", snap_repairs="word"))
     assert abs(eg._snap_args(tl, act, deps)["src_out"] - 3.1) < 0.25          # nearest word gap
     assert eg._snap_args(tl, {**act, "source": "plan"}, deps)["src_out"] == pytest.approx(4.0)
+
+
+def test_snapping_never_breaks_a_constraint_the_plain_action_meets(synthetic, tmp_path):
+    from agent.config import AgentConfig, AgentPolicy
+    from editing.operations import apply_action
+
+    deps = EditDeps(ctx=synthetic_context(synthetic), recorder=InMemoryRecorder(out_dir=tmp_path, do_render=False),
+                    config=AgentConfig(policy=AgentPolicy(snap_cuts="sentence")))
+    tl = eg.Timeline(assets=deps.ctx.assets, output=eg.OutputSpec(min_duration=5, max_duration=7))
+    tl = apply_action(tl, "select_clip", {"scene_id": "S4", "src_in": 8, "src_out": 12}, deps.ctx).timeline  # 4.0s
+    state = {"timeline": tl.model_dump(), "current": {"name": "select_clip", "source": "plan",
+                                                      "args": {"scene_id": "S1", "src_in": 0.8, "src_out": 3.1}},
+             "step": 0, "version": 1, "min_duration": 5, "max_duration": 7, "history": [], "log": []}
+    # sentence snapping would make this clip 0.0-4.0 (total 8.0s > 7s); plain 0.8-3.1 gives 6.3s: keep plain
+    out = eg.execute(state, {"configurable": {"deps": deps}})
+    assert deps.recorder.actions[-1]["args"]["src_in"] == 0.8 and deps.recorder.actions[-1]["args"]["src_out"] == 3.1
+    assert eg.Timeline.model_validate(out["timeline"]).duration == pytest.approx(6.3)
+    # with room in the window the snap is kept
+    deps.recorder.actions.clear()
+    eg.execute(state | {"max_duration": 15}, {"configurable": {"deps": deps}})
+    assert deps.recorder.actions[-1]["args"]["src_in"] == pytest.approx(0.0)

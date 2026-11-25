@@ -60,6 +60,20 @@ def run_pair(baseline: str, candidate: str, tasks: list[BenchmarkTask], splits: 
     return bpath, cpath
 
 
+def confirm_failures(candidate: str, tasks: list[BenchmarkTask], splits: list[str], bpath: Path, cpath: Path,
+                     path: Path) -> Path | None:
+    """Re-run the candidate once on tasks it failed to render but the baseline rendered.
+    Returns the confirmation results file, or None when nothing newly failed."""
+    base = {r["task"]: r for r in json.loads(bpath.read_text())["results"]}
+    cand = {r["task"]: r for r in json.loads(cpath.read_text())["results"]}
+    redo = [t for t in tasks if t.id in base and t.id in cand and base[t.id].get("evaluation_id")
+            and not cand[t.id].get("evaluation_id") and cand[t.id].get("status") != "error"]
+    if not redo:
+        return None
+    run_benchmark(redo, splits=splits, agent_version=candidate, path=path, langsmith=False)
+    return path
+
+
 def run_version(version: str, tasks: list[BenchmarkTask], splits: list[str], path: Path) -> tuple[dict, Path]:
     """Reuse a comparable run, else run (or resume) into `path`."""
     found = find_run(version, splits, len(tasks))

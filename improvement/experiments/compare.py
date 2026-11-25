@@ -6,6 +6,11 @@
 - Paired task-level differences of pass rate (an unrendered task counts as 0), with a bootstrap
   confidence interval for the mean difference. Paired because tasks differ far more from each other
   than versions do; comparing each task with itself removes that variance.
+- Infrastructure errors (status "error": network down, provider exception) are not agent behaviour:
+  such a task is excluded on BOTH sides and listed. Round 3 lost a baseline task to a DNS outage.
+- A task that newly fails under the candidate is "confirmed" only if a re-run of the candidate fails
+  again (`confirm` run); otherwise it is reported as flaky. One run per version cannot tell one bad
+  draw from a regression (the unchanged baseline itself failed if-02 on one of three runs).
 """
 
 import random
@@ -43,14 +48,24 @@ def check_rates(results: list[dict], tasks: set[str]) -> dict[str, tuple[int, in
     return {k: (a, b) for k, (a, b) in out.items()}
 
 
-def compare(base: dict, cand: dict) -> dict:
+def _rates(rows: list[dict]) -> dict:
+    n = len(rows) or 1
+    return {"completion_rate": round(sum(bool(r.get("evaluation_id")) for r in rows) / n, 3),
+            "technical_valid_rate": round(sum(bool(r.get("gate")) for r in rows) / n, 3)}
+
+
+def compare(base: dict, cand: dict, confirm: dict | None = None) -> dict:
     if base["dataset_version"] != cand["dataset_version"] or base["evaluator_version"] != cand["evaluator_version"]:
         raise ValueError("runs used different dataset or evaluator versions; they are not comparable")
     b, c = _by_task(base), _by_task(cand)
-    tasks = sorted(set(b) & set(c))
+    common = sorted(set(b) & set(c))
+    infra = sorted(t for t in common if b[t].get("status") == "error" or c[t].get("status") == "error")
+    tasks = [t for t in common if t not in infra]
     both_done = {t for t in tasks if b[t].get("evaluation_id") and c[t].get("evaluation_id")}
     bs = {k: v for k, v in (base.get("summary") or {}).items() if k in RUN_METRICS}
     cs = {k: v for k, v in (cand.get("summary") or {}).items() if k in RUN_METRICS}
+    bs |= _rates([b[t] for t in tasks])  # over comparable tasks only (infrastructure errors excluded)
+    cs |= _rates([c[t] for t in tasks])
     metrics = {k: {"baseline": bs.get(k), "candidate": cs.get(k),
                    "delta": round(cs[k] - bs[k], 3) if bs.get(k) is not None and cs.get(k) is not None else None}
                for k in RUN_METRICS}
@@ -75,11 +90,16 @@ def compare(base: dict, cand: dict) -> dict:
                      "delta": round(statistics.fmean(v["candidate"]) - statistics.fmean(v["baseline"]), 3)}
                 for sp, v in sorted(splits.items())}
     d = list(diffs.values())
+    newly_failed = sorted(t for t in tasks if b[t].get("evaluation_id") and not c[t].get("evaluation_id"))
+    rerun = _by_task(confirm) if confirm else {}
+    flaky = [t for t in newly_failed if (rerun.get(t) or {}).get("evaluation_id")]
     return {"baseline_version": base["agent_version"], "candidate_version": cand["agent_version"],
             "tasks": len(tasks), "both_rendered": len(both_done), "metrics": metrics, "checks": checks,
             "by_split": by_split,
             "paired": {"mean_diff": round(statistics.fmean(d), 4) if d else 0.0, "ci95": bootstrap_ci(d),
                        "wins": sum(x > 0.001 for x in d), "ties": sum(abs(x) <= 0.001 for x in d),
                        "losses": sum(x < -0.001 for x in d), "per_task": diffs},
-            "newly_failed": sorted(t for t in tasks if b[t].get("evaluation_id") and not c[t].get("evaluation_id")),
-            "newly_rendered": sorted(t for t in tasks if c[t].get("evaluation_id") and not b[t].get("evaluation_id"))}
+            "newly_failed": newly_failed, "flaky": flaky,
+            "confirmed_failed": [t for t in newly_failed if t not in flaky], "rerun": confirm is not None,
+            "newly_rendered": sorted(t for t in tasks if c[t].get("evaluation_id") and not b[t].get("evaluation_id")),
+            "excluded_infra_errors": infra}

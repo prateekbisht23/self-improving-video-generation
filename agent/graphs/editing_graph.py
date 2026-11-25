@@ -228,6 +228,21 @@ def _snap_args(tl: Timeline, act: Action, deps: EditDeps) -> dict:
     return args
 
 
+def _snap_breaks(state: EditState, deps: EditDeps, plain: Timeline, snapped: Timeline) -> str | None:
+    """Snapping is a refinement: it must not break a constraint the unsnapped action satisfies.
+
+    Round 3 showed both cases: the fixup trimmed pc-02 to 25.0s and word snapping moved the edge
+    0.08s past the 25s limit (task failed); and snapping stretched ~12s clips past the max shot length."""
+    lo, hi = state["min_duration"], state["max_duration"]
+    d0, d1 = plain.duration, snapped.duration
+    if (lo <= d0 <= hi and not lo <= d1 <= hi) or d0 <= hi < d1:
+        return "duration"
+    cap = ((deps.style or {}).get("guidance") or {}).get("max_shot_seconds") or 12.0
+    if sum(c.duration > cap for c in snapped.video) > sum(c.duration > cap for c in plain.video):
+        return "shot length"
+    return None
+
+
 def next_action(state: EditState, config: RunnableConfig) -> EditState:
     """Pop the next queued action. Before it runs, the rules predictor guesses it (online, logged),
     which gives a live accuracy signal for FR-07 without letting the predictor drive the agent yet."""
@@ -249,8 +264,13 @@ def next_action(state: EditState, config: RunnableConfig) -> EditState:
 def execute(state: EditState, config: RunnableConfig) -> EditState:
     deps, act = _deps(config), state["current"]
     tl = _tl(state)
-    act = {**act, "args": _snap_args(tl, act, deps)}
-    res = apply_action(tl, act["name"], act["args"], deps.ctx)
+    plain_args, args = dict(act["args"]), _snap_args(tl, act, deps)
+    res = apply_action(tl, act["name"], args, deps.ctx)
+    if args != plain_args:  # keep the snap only if it breaks nothing the plain action satisfies
+        plain = apply_action(tl, act["name"], plain_args, deps.ctx)
+        if plain.ok and (not res.ok or _snap_breaks(state, deps, plain.timeline or tl, res.timeline or tl)):
+            res, args = plain, plain_args
+    act = {**act, "args": args}
     step, version = state["step"] + 1, state["version"]
     new_version = version + 1 if res.changed else version
     if res.changed:

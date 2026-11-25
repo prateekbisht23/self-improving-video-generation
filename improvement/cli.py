@@ -3,6 +3,7 @@
     uv run python -m improvement.cli analyze                 # failures -> clusters only (no model calls)
     uv run python -m improvement.cli start [--max-clusters 3] # full loop; stops at the approval interrupt
     uv run python -m improvement.cli resume <thread>          # continue after an error (e.g. daily quota)
+    uv run python -m improvement.cli retest <experiment-id> --reason "..."   # re-test a candidate after a code fix
     uv run python -m improvement.cli approve <thread> --by <name> [--note ...]
     uv run python -m improvement.cli decline <thread> --by <name> [--note ...]
     uv run python -m improvement.cli status                   # versions, experiments, promotions
@@ -59,6 +60,9 @@ def main() -> None:
     st.add_argument("--max-clusters", type=int, default=3)
     r = sub.add_parser("resume")
     r.add_argument("thread")
+    rt = sub.add_parser("retest")
+    rt.add_argument("experiment")
+    rt.add_argument("--reason", required=True)
     for name in ("approve", "decline"):
         d = sub.add_parser(name)
         d.add_argument("thread")
@@ -78,6 +82,8 @@ def main() -> None:
         status()
     elif a.cmd == "start":
         print(json.dumps(ig.start(a.max_clusters), indent=2, default=str))
+    elif a.cmd == "retest":
+        print(json.dumps(ig.retest(a.experiment, a.reason), indent=2, default=str))
     elif a.cmd == "resume":
         print(json.dumps(ig.resume(a.thread), indent=2, default=str))
     else:

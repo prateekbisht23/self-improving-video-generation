@@ -37,7 +37,7 @@ from improvement.collection import collect
 from improvement.diagnosis.diagnose import diagnose, gather_evidence
 from improvement.experiments import holdout as holdout_mod
 from improvement.experiments.compare import compare
-from improvement.experiments.run import EXPERIMENTS, run_pair
+from improvement.experiments.run import EXPERIMENTS, confirm_failures, run_pair
 from improvement.promotion.gates import advisory_checks, evaluate_gates
 from improvement.promotion.report import write_report
 
@@ -50,6 +50,7 @@ class ImproveDeps:
     model: Any = None                      # improver chat model (None = config/models.py)
     embed: Any = "default"                 # texts -> vectors; None disables semantic clustering
     run_pair: Any = run_pair               # (baseline, candidate, tasks, splits, bpath, cpath) -> paths
+    confirm: Any = confirm_failures        # re-run the candidate where it newly failed -> path | None
     assess: Any = holdout_mod.assess
     advisory: dict = field(default_factory=advisory_checks)
 
@@ -63,6 +64,7 @@ class ImproveState(TypedDict, total=False):
     experiment_id: str
     baseline_run: str
     candidate_run: str
+    confirm_run: str | None
     eligible: bool
     report: str
     decision: dict
@@ -186,11 +188,14 @@ def experiment_node(state: ImproveState, config) -> ImproveState:
     bpath, cpath = deps.run_pair(state["baseline_version"], state["candidate_version"], tasks, SELECTION_SPLITS,
                                  EXPERIMENTS / f"{tag}-baseline-dev-val.json",
                                  EXPERIMENTS / f"{tag}-candidate-dev-val.json")
+    confirm = deps.confirm(state["candidate_version"], tasks, SELECTION_SPLITS, bpath, cpath,
+                           EXPERIMENTS / f"{tag}-candidate-confirm-dev-val.json")
     with session_scope() as s:
         exp = s.get(Experiment, uuid.UUID(state["experiment_id"]))
         exp.baseline_run, exp.candidate_run = str(bpath), str(cpath)
-    return {"baseline_run": str(bpath), "candidate_run": str(cpath),
-            "log": state["log"] + [f"runs: baseline {bpath.name}, candidate {cpath.name}"]}
+    return {"baseline_run": str(bpath), "candidate_run": str(cpath), "confirm_run": str(confirm) if confirm else None,
+            "log": state["log"] + [f"runs: baseline {bpath.name}, candidate {cpath.name}"
+                                   + (f", confirmation {confirm.name}" if confirm else "")]}
 
 
 def gates_node(state: ImproveState, config) -> ImproveState:
@@ -200,9 +205,10 @@ def gates_node(state: ImproveState, config) -> ImproveState:
     deps = _deps(config)
     base = json.loads(Path(state["baseline_run"]).read_text())
     cand = json.loads(Path(state["candidate_run"]).read_text())
+    confirm = json.loads(Path(state["confirm_run"]).read_text()) if state.get("confirm_run") else None
     with session_scope() as s:
         exp = s.get(Experiment, uuid.UUID(state["experiment_id"]))
-        exp.comparison = compare(base, cand)
+        exp.comparison = compare(base, cand, confirm)
         exp.gates = evaluate_gates(exp.comparison, exp.change["targets"], deps.advisory)
         eligible = exp.gates["eligible"]
     return {"eligible": eligible, "log": state["log"] + [f"gates: eligible={eligible}"]}
@@ -334,6 +340,40 @@ def start(max_clusters: int = 3, deps: ImproveDeps | None = None, g=None) -> dic
     thread = f"improve-{uuid.uuid4()}"
     out = (g or graph()).invoke({"max_clusters": max_clusters, "log": []}, _cfg(thread, deps))
     return _result(out, thread)
+
+
+def retest(experiment_id: str, reason: str, deps: ImproveDeps | None = None, g=None) -> dict:
+    """Re-test an earlier candidate as a NEW experiment, entering the graph after `propose`.
+
+    For a human who changed the code a knob runs on (round 3: snapping now respects the duration
+    window). The config hash and version string stay the same, so the run files' `code_revision` and
+    this experiment's `retest_of` record what differs. Everything after propose is unchanged:
+    interleaved runs, gates, holdout, human approval."""
+    with session_scope() as s:
+        old = s.get(Experiment, uuid.UUID(experiment_id))
+        if old is None or old.status not in ("rejected", "declined"):
+            raise ValueError("only a rejected or declined experiment can be re-tested")
+        if registry.active(s).version != old.baseline_version:
+            raise ValueError(f"the active version is no longer {old.baseline_version}")
+        thread = f"improve-{uuid.uuid4()}"
+        exp = Experiment(name=f"{old.baseline_version} vs {old.candidate_version} (retest)",
+                         analysis_id=old.analysis_id, baseline_version=old.baseline_version,
+                         candidate_version=old.candidate_version, dataset_version=dataset_version(),
+                         evaluator_version=EVALUATOR_VERSION,
+                         models={r: model_id(r) for r in ("planner", "judge", "improver")}, splits=SELECTION_SPLITS,
+                         change={**old.change, "retest_of": str(old.id), "retest_reason": reason},
+                         n_runs=1, status="created", thread_id=thread)
+        s.add(exp)
+        row = s.scalar(select(AgentVersion).where(AgentVersion.version == old.candidate_version))
+        row.status = "candidate"
+        s.flush()
+        values = {"baseline_version": old.baseline_version, "candidate_version": old.candidate_version,
+                  "experiment_id": str(exp.id), "analysis_id": str(old.analysis_id), "diagnoses": [],
+                  "log": [f"retest of {str(old.id)[:8]}: {reason}"]}
+    g = g or graph()
+    cfg = _cfg(thread, deps, "improvement_retest")
+    g.update_state(cfg, values, as_node="propose")  # the next node is `experiment`
+    return _result(g.invoke(None, cfg), thread)
 
 
 def resume(thread: str, deps: ImproveDeps | None = None, g=None) -> dict:

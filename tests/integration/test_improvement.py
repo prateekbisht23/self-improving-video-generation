@@ -129,7 +129,8 @@ def deps(tmp_path, monkeypatch):
             return {"metrics": {"mean_pass_rate": {"baseline": 0.8, "candidate": 0.85, "delta": 0.05}},
                     "paired": {"mean_diff": 0.05, "ci95": [0.01, 0.09], "wins": 5, "ties": 1, "losses": 0},
                     "checks": {}, "newly_failed": [], "newly_rendered": []}
-        d = ig.ImproveDeps(model=Scripted(), embed=None, run_pair=fake_pair(improve_cut), assess=assess,
+        d = ig.ImproveDeps(model=Scripted(), embed=None, run_pair=fake_pair(improve_cut), confirm=lambda *a: None,
+                           assess=assess,
                            advisory={})
         d.assessed = assessed
         return d
@@ -226,3 +227,19 @@ def test_second_round_sees_why_the_first_candidate_was_rejected(deps):
     assert "(none)" in propose_prompts[0].split("PREVIOUS EXPERIMENTS")[1]
     history = propose_prompts[1].split("PREVIOUS EXPERIMENTS")[1]
     assert first["candidate_version"] in history and "regressions" in history
+
+
+def test_retest_runs_a_rejected_candidate_again_as_a_new_experiment(deps):
+    g = ig.build_graph(InMemorySaver())
+    first = ig.start(deps=deps(improve_cut=False), g=g)
+    assert first["status"] == "rejected"
+    d = deps(improve_cut=True)  # "the code behind the knob was fixed"
+    out = ig.retest(first["experiment_id"], "snapping now respects the duration window", deps=d, g=g)
+    assert out["status"] == "awaiting_approval" and d.assessed
+    with session_scope() as s:
+        exps = s.scalars(select(Experiment).order_by(Experiment.created_at)).all()
+        assert [e.status for e in exps] == ["rejected", "awaiting_approval"]
+        assert exps[1].change["retest_of"] == first["experiment_id"]
+        assert exps[1].candidate_version == exps[0].candidate_version
+    with pytest.raises(ValueError):
+        ig.retest(str(exps[1].id), "not rejected", deps=d, g=g)

@@ -201,3 +201,31 @@ def test_only_transient_provider_errors_are_retried():
     assert transient(RuntimeError("503 UNAVAILABLE. This model is currently experiencing high demand"))
     assert not transient(RuntimeError("429 RESOURCE_EXHAUSTED GenerateRequestsPerDayPerProjectPerModel 503"))
     assert not transient(ValueError("proposal targets [] none of which were diagnosed"))
+
+
+def test_a_failure_that_renders_on_the_rerun_is_flaky_not_critical():
+    cand = [dict(r, checks=dict(r["checks"], **{"temporal.cut_through_word": True})) for r in base_rows()]
+    cand[0] = result("t0", "development", 0, {}, rendered=False)
+    rerun = run("c", [result("t0", "development", 0.8, base_rows()[0]["checks"])])
+    g = evaluate_gates(compare(run("b", base_rows()), run("c", cand), rerun), ["temporal.cut_through_word"])
+    assert not any("no longer render" in c for c in g["critical"]) and any("flaky" in n for n in g["notes"])
+    # completion still dropped in this single run, so the candidate is still not eligible
+    assert any("completion_rate" in c for c in g["critical"])
+
+
+def test_infrastructure_errors_are_excluded_on_both_sides():
+    base = base_rows()
+    base[3] = {"task": "t3", "split": "development", "status": "error", "error": "ConnectError: DNS"}
+    cand = [dict(r, checks=dict(r["checks"], **{"temporal.cut_through_word": True})) for r in base_rows()]
+    cmp = compare(run("b", base), run("c", cand))
+    assert cmp["excluded_infra_errors"] == ["t3"] and cmp["tasks"] == 9
+    assert cmp["metrics"]["completion_rate"]["delta"] == 0
+
+
+def test_a_single_task_flip_does_not_gate():
+    rows = [dict(r, checks=dict(r["checks"], **{"style.color_similarity": True})) if i < 3 else r
+            for i, r in enumerate(base_rows())]
+    cand = [dict(r, checks=dict(r["checks"], **{"temporal.cut_through_word": True})) for r in rows]
+    cand[0] = dict(cand[0], checks=dict(cand[0]["checks"], **{"style.color_similarity": False}))  # 1 of 3 flips
+    g = evaluate_gates(compare(run("b", rows), run("c", cand)), ["temporal.cut_through_word"])
+    assert g["eligible"] and any("color_similarity" in n and "not gating" in n for n in g["notes"])

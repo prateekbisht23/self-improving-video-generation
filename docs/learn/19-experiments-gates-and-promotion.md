@@ -50,9 +50,11 @@ A candidate is **eligible** for a human decision only if:
 
 | kind | rule |
 |---|---|
-| critical | completion rate and technical-gate rate don't drop; no task that rendered before fails to render now |
-| regression | no non-targeted check drops more than 10 points; the validation split's mean doesn't drop more than 2 points; paired mean difference ≥ 0 |
-| improvement | at least one *targeted* check improves ≥ 10 points |
+| critical | completion rate and technical-gate rate don't drop; no task that rendered before fails to render now, **confirmed by one re-run** of the candidate (a task that renders on the re-run is reported as flaky) |
+| regression | no non-targeted check drops more than 10 points **on at least 2 tasks**; the validation split's mean doesn't drop more than 2 points; paired mean difference ≥ 0 |
+| improvement | at least one *targeted* check improves ≥ 10 points **on at least 2 tasks** |
+
+Tasks that hit an **infrastructure error** (network, provider exception) on either side are excluded from the comparison and listed; they say nothing about the agent.
 
 **Advisory checks** never block. They're computed, not hand-picked: any check whose verdict flipped on more than 15% of re-evaluations of identical renders (from `--reevaluate`). Today that's `visual.framing` (6/23).
 
@@ -96,6 +98,29 @@ The 6 repeated-footage failures all fell on the candidate. Across the five v0.2-
 Fix: **interleave**. `run_pair()` runs each task under both versions back to back, alternating which goes first, so drift in the provider during the day hits both versions equally. The holdout assessment does the same. What interleaving can't fix is the agent's own randomness. With one run per version, ±10–15 points on a single check is within noise, so the per-check gates stay coarse, and a candidate is only worth promoting if its gain is large and on the tasks it can actually affect.
 
 Also fixed: on `--resume`, a re-evaluated task kept yesterday's `daily_quota` flag, so the runner stopped immediately with a false "quota exhausted".
+
+### Round 3: rejected (`03fbf7cf`), and two real bugs in a knob
+The proposal was finally consistent: `snap_cuts=word` and `captions_follow_reference=true`, run interleaved. It needed two quota days. The resume worked as designed, with `diagnose` retrying a 503 and the experiment continuing its results files.
+
+| | baseline | candidate |
+|---|---|---|
+| style.caption_match (target) | 0% | **100%** |
+| temporal.cut_through_word (target) | 60% | **75%** |
+| completion (infrastructure error excluded) | 95.7% | 91.3%: pc-02 and pc-03 stopped rendering |
+| temporal.shot_durations | 65% | 45% (5 tasks vs 1) |
+
+Rejected, and rightly so. Reading the failed sessions showed **two bugs in the snapping code**, not the agent being unlucky:
+- **pc-02:** the deterministic fixup trimmed the edit to exactly 25.0 s, the window's upper limit. Word snapping then moved that cut 0.08 s outward into the next word gap: 25.08 s, outside the window, so the task failed.
+- **shot_durations:** snapping moves an edge up to ~1 s, and that's enough to stretch a planned ~12 s clip past the 12.5 s shot limit.
+
+Fix (`_snap_breaks` in the editing graph): snapping is a refinement, so it **must never break a constraint that the unsnapped action satisfies**. `execute` applies both versions (operations are pure) and keeps the snap only if total duration stays in its window and no clip becomes longer than the max shot. A human wrote this; the improvement loop only turns knobs. And because the knob's *behaviour* changed while its *name* didn't, run files now record `code_revision` (git commit, `-dirty` if uncommitted).
+
+The same round produced three more harness changes:
+- **Infrastructure errors.** The baseline lost rs-04 to a DNS outage, which counted against the baseline. Such tasks are now excluded on both sides.
+- **One flip is noise.** `style.color_similarity` "regressed" 100% → 67%, but that was 1 task out of 3. `MIN_FLIPS = 2` now applies to regressions and improvements alike.
+- **Confirm new failures.** The unchanged baseline failed if-02 in one of three runs, so a single new failure proves little. The candidate is re-run once on each newly failed task, and only a second failure is critical.
+
+**Re-testing after a code fix**: `improvement.cli retest <experiment> --reason "..."` creates a *new* experiment for the same candidate. It enters the graph after `propose` (`update_state(..., as_node="propose")`), so interleaved runs, gates, holdout and human approval all apply unchanged. The record keeps `retest_of` and the reason.
 
 ## Try this
 1. `uv run python -m improvement.cli status`: versions, experiments, promotions.
