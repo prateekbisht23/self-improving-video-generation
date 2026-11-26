@@ -62,12 +62,18 @@ def run_pair(baseline: str, candidate: str, tasks: list[BenchmarkTask], splits: 
 
 def confirm_failures(candidate: str, tasks: list[BenchmarkTask], splits: list[str], bpath: Path, cpath: Path,
                      path: Path) -> Path | None:
-    """Re-run the candidate once on tasks it failed to render but the baseline rendered.
-    Returns the confirmation results file, or None when nothing newly failed."""
+    """Re-run the candidate once on tasks it failed to render, or whose technical gate it failed, where
+    the baseline succeeded. Returns the confirmation results file, or None when nothing newly failed."""
     base = {r["task"]: r for r in json.loads(bpath.read_text())["results"]}
     cand = {r["task"]: r for r in json.loads(cpath.read_text())["results"]}
-    redo = [t for t in tasks if t.id in base and t.id in cand and base[t.id].get("evaluation_id")
-            and not cand[t.id].get("evaluation_id") and cand[t.id].get("status") != "error"]
+
+    def newly_failed(b: dict, c: dict) -> bool:
+        if c.get("status") == "error":
+            return False  # infrastructure, excluded anyway
+        return bool(b.get("evaluation_id") and not c.get("evaluation_id")
+                    or b.get("gate") and c.get("evaluation_id") and not c.get("gate"))
+
+    redo = [t for t in tasks if t.id in base and t.id in cand and newly_failed(base[t.id], cand[t.id])]
     if not redo:
         return None
     run_benchmark(redo, splits=splits, agent_version=candidate, path=path, langsmith=False)

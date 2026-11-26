@@ -26,7 +26,7 @@ from langgraph.types import Command, RetryPolicy, interrupt
 from sqlalchemy import select
 
 from agent.config import AgentConfig
-from benchmarks.schemas.task import dataset_version, load_tasks
+from benchmarks.schemas.task import dataset_version, in_scope, load_tasks
 from config.models import model_id
 from db.models import AgentVersion, Experiment, FailureCluster
 from db.session import session_scope
@@ -206,9 +206,12 @@ def gates_node(state: ImproveState, config) -> ImproveState:
     base = json.loads(Path(state["baseline_run"]).read_text())
     cand = json.loads(Path(state["candidate_run"]).read_text())
     confirm = json.loads(Path(state["confirm_run"]).read_text()) if state.get("confirm_run") else None
+    name = candidate_config(state["candidate_version"]).scope()
+    scope = ({"name": name, "tasks": [t.id for t in load_tasks(SELECTION_SPLITS) if in_scope(t, name)]}
+             if name else None)
     with session_scope() as s:
         exp = s.get(Experiment, uuid.UUID(state["experiment_id"]))
-        exp.comparison = compare(base, cand, confirm)
+        exp.comparison = compare(base, cand, confirm, scope)
         exp.gates = evaluate_gates(exp.comparison, exp.change["targets"], deps.advisory)
         eligible = exp.gates["eligible"]
     return {"eligible": eligible, "log": state["log"] + [f"gates: eligible={eligible}"]}
@@ -377,6 +380,26 @@ def _discard(experiment_id: str) -> None:
         s.delete(exp)
 
 
+def _top_up_confirmation(candidate: str, bpath: Path, cpath: Path, confirm: Path | None, tag: str,
+                         deps: ImproveDeps | None) -> Path | None:
+    """Confirmation re-runs that the CURRENT rules require but the stored runs lack (e.g. technical
+    gate failures, confirmed since the gate-failure rule was added). Tasks already re-run are kept."""
+    import json
+
+    done = {r["task"] for r in json.loads(confirm.read_text())["results"]} if confirm else set()
+    tasks = [t for t in load_tasks(SELECTION_SPLITS) if t.id not in done]
+    extra = (deps or ImproveDeps()).confirm(candidate, tasks, SELECTION_SPLITS, bpath, cpath,
+                                            EXPERIMENTS / f"{tag}-candidate-confirm-extra-dev-val.json")
+    if not extra:
+        return confirm
+    if not confirm:
+        return Path(extra)
+    merged = json.loads(confirm.read_text())
+    merged["results"] += json.loads(Path(extra).read_text())["results"]
+    Path(confirm).write_text(json.dumps(merged, indent=2, default=str))
+    return confirm
+
+
 def retest(experiment_id: str, reason: str, deps: ImproveDeps | None = None, g=None) -> dict:
     """Re-test an earlier candidate as a NEW experiment, entering the graph after `propose`.
 
@@ -415,6 +438,7 @@ def rescore(experiment_id: str, reason: str, checks: list[str], deps: ImproveDep
         old_confirm = EXPERIMENTS / f"{old_tag}-candidate-confirm-dev-val.json"
         confirm = (rescore_run(old_confirm, EXPERIMENTS / f"{tag}-candidate-confirm-dev-val.json", checks, measure)
                    if old_confirm.exists() else None)
+        confirm = _top_up_confirmation(values["candidate_version"], bpath, cpath, confirm, tag, deps)
     except Exception:
         _discard(runs["new_id"])
         raise

@@ -9,6 +9,20 @@ def _pct(x):
     return "–" if x is None else f"{x:.0%}"
 
 
+def _scope_section(title: str, sc: dict, targets: list[str]) -> list[str]:
+    p = sc["paired"]
+    L = [f"### {title}: in scope '{sc['name']}' ({len(sc['task_ids'])} tasks: {', '.join(sc['task_ids'])})", "",
+         f"Paired: mean Δ {p['mean_diff']:+.3f} (95% CI {p['ci95'][0]:+.3f} … {p['ci95'][1]:+.3f}); "
+         f"wins {p['wins']} / ties {p['ties']} / losses {p['losses']}.", "",
+         "| check | baseline | candidate | Δ | n |", "|---|---|---|---|---|"]
+    for k, v in sc["checks"].items():
+        if v["delta"] or k in targets:
+            mark = " ⬅ target" if k in targets else ""
+            delta = "" if v["delta"] is None else f"{v['delta']:+.0%}"
+            L.append(f"| {k}{mark} | {_pct(v['baseline'])} | {_pct(v['candidate'])} | {delta} | {v['n']} |")
+    return L + ["", "(checks that did not change are omitted)", ""]
+
+
 def render_report(exp: Experiment, clusters: list[FailureCluster]) -> str:
     ch, cmp, g = exp.change or {}, exp.comparison or {}, exp.gates or {}
     L = [f"# Experiment {exp.name}", "",
@@ -52,6 +66,8 @@ def render_report(exp: Experiment, clusters: list[FailureCluster]) -> str:
             delta = "" if v["delta"] is None else f"{v['delta']:+.0%}"
             L.append(f"| {k}{mark} | {_pct(v['baseline'])} | {_pct(v['candidate'])} | {delta} | {v['n']} |")
         L.append("")
+        if cmp.get("scope"):
+            L += _scope_section("Development + validation", cmp["scope"], ch.get("targets", []))
     if g:
         L += ["## Regression gates", "", f"**Eligible for promotion: {'YES' if g['eligible'] else 'NO'}**", ""]
         for title, key in (("Critical", "critical"), ("Regressions", "regressions"),
@@ -75,6 +91,8 @@ def render_report(exp: Experiment, clusters: list[FailureCluster]) -> str:
             L += ["| check | baseline | candidate | n |", "|---|---|---|---|"]
             L += [f"| {k} | {_pct(v['baseline'])} | {_pct(v['candidate'])} | {v['n']} |" for k, v in rows]
             L.append("")
+        if h.get("scope"):
+            L += _scope_section("Holdout", h["scope"], targets)
     if exp.decision_by:
         L += ["## Decision", "",
               f"{exp.status} by **{exp.decision_by}** at {exp.decided_at}: {exp.decision_note or ''}", ""]

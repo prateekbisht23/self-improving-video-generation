@@ -7,6 +7,7 @@ from evaluation.features import RenderFeatures, Segment, parse_freeze
 from evaluation.inputs import EvalInput
 from evaluation.schemas import CheckResult, Evidence
 from perception.ffmpeg import run as run_ffmpeg
+from rendering.ffmpeg.render import crop_filter
 
 FREEZE_MIN = 2.0       # an output freeze this long is reported
 STATIC_SHARE = 0.8     # ...unless the source under it is at least this static (a still shot, not a fault)
@@ -73,11 +74,13 @@ def source_static(z: Segment, tl: dict | None) -> bool:
     shot in the source (a locked-off moon, a slide) produces the same "no motion" signal in the output
     but is content, not a fault; whether a still shot is a good editing choice is for the pacing and
     judge checks. So each output freeze is mapped back through the timeline to its source ranges, and
-    freezedetect runs there with the same noise threshold. The source is the full frame, so motion
-    outside the 9:16 crop makes the source look less static: the conservative direction."""
+    freezedetect runs there, inside the same 9:16 window the renderer shows, with the same noise
+    threshold. (eval-1.2 looked at the full frame: motion outside the crop made a still visible window
+    count as "not static", a false fault.)"""
     if not tl or not tl.get("video"):
         return False
     paths = {a["id"]: a["path"] for a in tl.get("assets", [])}
+    out = {"width": 1080, "height": 1920} | (tl.get("output") or {})
     covered = 0.0
     for c, start in zip(tl["video"], clip_starts(tl), strict=True):
         a, b = max(z.start, start), min(z.end, start + c["src_out"] - c["src_in"])
@@ -86,8 +89,9 @@ def source_static(z: Segment, tl: dict | None) -> bool:
         path = paths.get(c["asset_id"])
         if not path or not Path(path).exists():
             return False
+        window = crop_filter(c.get("crop_x", 0.5), out["width"], out["height"])
         log = run_ffmpeg(["ffmpeg", "-hide_banner", "-nostdin", "-ss", f"{c['src_in'] + a - start:.3f}",
-                          "-t", f"{b - a:.3f}", "-i", path, "-an", "-vf", "freezedetect=n=-60dB:d=0.5",
+                          "-t", f"{b - a:.3f}", "-i", path, "-an", "-vf", f"{window},freezedetect=n=-60dB:d=0.5",
                           "-f", "null", "-"], check=False).stderr
         still = sum(max(0.0, min(s.end, b - a) - max(s.start, 0.0)) for s in parse_freeze(log, b - a))
         if still < STATIC_SHARE * (b - a):

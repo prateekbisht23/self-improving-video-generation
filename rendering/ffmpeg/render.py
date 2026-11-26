@@ -62,6 +62,13 @@ class RenderResult:
         return asdict(self)
 
 
+def crop_filter(crop_x: float, width: int, height: int) -> str:
+    """The widest window of the output's aspect that fits the source (even dimensions), slid
+    horizontally by crop_x. Shared with the evaluator, which inspects the same window in the source."""
+    cw = f"trunc(min(iw\\,ih*{width}/{height})/2)*2"
+    ch = f"trunc(min(ih\\,iw*{height}/{width})/2)*2"
+    return f"crop=w='{cw}':h='{ch}':x='(iw-ow)*{crop_x:.3f}':y='(ih-oh)/2'"
+
 def ffmpeg_version() -> str:
     out = subprocess.run(["ffmpeg", "-version"], capture_output=True, text=True).stdout
     return out.splitlines()[0] if out else "unknown"
@@ -89,10 +96,7 @@ def compile_timeline(tl: Timeline, out_name: str = "output.mp4") -> RenderPlan:
             args += ["-f", "lavfi", "-t", dur, "-i", "anullsrc=r=48000:cl=stereo"]
             ain = f"{n_inputs}:a"
             n_inputs += 1
-        # widest 9:16 window that fits the source (even dimensions), slid horizontally by crop_x
-        cw = f"trunc(min(iw\\,ih*{o.width}/{o.height})/2)*2"
-        ch = f"trunc(min(ih\\,iw*{o.height}/{o.width})/2)*2"
-        crop = f"crop=w='{cw}':h='{ch}':x='(iw-ow)*{c.crop_x:.3f}':y='(ih-oh)/2'"
+        crop = crop_filter(c.crop_x, o.width, o.height)
         vchain = ["setpts=PTS-STARTPTS", crop, f"scale={o.width}:{o.height}:flags=lanczos", "setsar=1",
                   f"fps={o.fps}", "format=yuv420p", "settb=AVTB"]
         if color:

@@ -48,6 +48,13 @@ class BenchmarkTask(BaseModel):
         return t
 
 
+SCOPES = {"reference": lambda t: bool(t.reference)}  # see AgentConfig.scope
+
+
+def in_scope(task: "BenchmarkTask", scope: str | None) -> bool:
+    return scope is None or SCOPES[scope](task)
+
+
 def load_tasks(splits: list[str] | str = ("development",), *, allow_holdout: bool = False) -> list[BenchmarkTask]:
     """Load tasks of the given splits. The holdout split needs an explicit opt-in, so the
     improvement loop (Phase 5) can't read it by accident."""

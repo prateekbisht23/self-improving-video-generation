@@ -8,8 +8,9 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
 
-# 1.1: + instruction.preference_satisfaction; 1.2: frozen_frames no longer flags still shots in the source
-EVALUATOR_VERSION = "eval-1.2"
+# 1.1: + instruction.preference_satisfaction; 1.2: frozen_frames no longer flags still shots in the source;
+# 1.3: ...judged inside the rendered 9:16 window
+EVALUATOR_VERSION = "eval-1.3"
 
 Category = Literal["technical", "instruction", "temporal", "captions", "style", "narrative", "visual"]
 Kind = Literal["deterministic", "signal", "model"]

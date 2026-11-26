@@ -209,8 +209,8 @@ def test_a_failure_that_renders_on_the_rerun_is_flaky_not_critical():
     rerun = run("c", [result("t0", "development", 0.8, base_rows()[0]["checks"])])
     g = evaluate_gates(compare(run("b", base_rows()), run("c", cand), rerun), ["temporal.cut_through_word"])
     assert not any("no longer render" in c for c in g["critical"]) and any("flaky" in n for n in g["notes"])
-    # completion still dropped in this single run, so the candidate is still not eligible
-    assert any("completion_rate" in c for c in g["critical"])
+    # the critical rates count the re-run result for a flaky task, so completion did not drop
+    assert not g["critical"]
 
 
 def test_infrastructure_errors_are_excluded_on_both_sides():
@@ -229,3 +229,68 @@ def test_a_single_task_flip_does_not_gate():
     cand[0] = dict(cand[0], checks=dict(cand[0]["checks"], **{"style.color_similarity": False}))  # 1 of 3 flips
     g = evaluate_gates(compare(run("b", rows), run("c", cand)), ["temporal.cut_through_word"])
     assert g["eligible"] and any("color_similarity" in n and "not gating" in n for n in g["notes"])
+
+
+def test_config_scope_only_when_every_change_is_scoped_the_same_way():
+    assert DEFAULT_CONFIG.scope() is None
+    cap = AgentConfig(policy=AgentPolicy(captions_follow_reference=True))
+    assert cap.scope() == "reference"
+    assert AgentConfig(policy=AgentPolicy(captions_follow_reference=True, snap_cuts="word")).scope() is None
+    assert AgentConfig(planner_addendum="x", policy=AgentPolicy(captions_follow_reference=True)).scope() is None
+
+
+def test_scope_claim_captions_knob_is_inert_without_a_reference():
+    """Pins the 'reference' scope of captions_follow_reference: no style reference -> baseline path."""
+    from types import SimpleNamespace
+
+    from agent.graphs.editing_graph import _skip_captions
+    cfg = AgentConfig(policy=AgentPolicy(captions_follow_reference=True))
+    state = {"instructions": "make a short", "memory_text": ""}
+    assert not _skip_captions(SimpleNamespace(config=cfg, style=None), state)
+    no_caps = {"observed": {"captions_present": False}}
+    assert _skip_captions(SimpleNamespace(config=cfg, style=no_caps), state)
+    assert not _skip_captions(SimpleNamespace(config=DEFAULT_CONFIG, style=no_caps), state)
+
+
+def _scoped_runs(in_lost: int, ctrl_flips: int):
+    """4 in-scope tasks (r*) where the target goes 0 -> 1 and `in_lost` lose a judge check,
+    plus 16 control tasks (c*) where `ctrl_flips` flip that judge check both ways."""
+    b, c = [], []
+    for i in range(4):
+        b.append(result(f"r{i}", "development", 0.8, {"style.caption_match": False, "instruction.adherence": True}))
+        c.append(result(f"r{i}", "development", 0.8, {"style.caption_match": True,
+                                                       "instruction.adherence": i >= in_lost}))
+    for i in range(16):
+        flip = i < ctrl_flips
+        b.append(result(f"c{i}", "development", 0.8, {"instruction.adherence": not (flip and i % 2)}))
+        c.append(result(f"c{i}", "development", 0.8, {"instruction.adherence": not (flip and not i % 2)}))
+    return run("b", b), run("c", c), {"name": "reference", "tasks": [f"r{i}" for i in range(4)]}
+
+
+def test_scoped_gates_judge_in_scope_tasks_against_the_control_noise():
+    b, c, scope = _scoped_runs(in_lost=2, ctrl_flips=6)   # judge flips on 6/16 identical-code tasks
+    cmp = compare(b, c, scope=scope)
+    assert cmp["control"]["checks"]["instruction.adherence"] == {"n": 16, "flips": 6}
+    g = evaluate_gates(cmp, ["style.caption_match"])
+    assert g["eligible"] and g["scope"] == "reference"
+    assert any("within A/A noise" in n for n in g["notes"])  # 2 of 4 is what that noise produces
+    b, c, scope = _scoped_runs(in_lost=4, ctrl_flips=0)   # a check that never flips by chance
+    g = evaluate_gates(compare(b, c, scope=scope), ["style.caption_match"])
+    assert not g["eligible"] and g["regressions"][0].startswith("instruction.adherence")
+    unscoped = evaluate_gates(compare(*_scoped_runs(in_lost=2, ctrl_flips=6)[:2]), ["style.caption_match"])
+    assert unscoped["scope"] is None and "thresholds" in unscoped
+
+
+def test_technical_gate_failure_that_passes_its_rerun_is_flaky_not_critical():
+    base = base_rows()
+    cand = [dict(r) for r in base]
+    cand[3] = dict(cand[3], gate=False)
+    rerun = run("c", [dict(base[3])])
+    cmp = compare(run("b", base), run("c", cand), rerun)
+    assert cmp["gate_flaky"] == ["t3"] and cmp["after_rerun"]["technical_valid_rate"]["delta"] == 0
+    assert cmp["metrics"]["technical_valid_rate"]["delta"] < 0  # still reported as measured
+    g = evaluate_gates(cmp, ["temporal.cut_through_word"])
+    assert not g["critical"] and any("passed on the re-run" in n for n in g["notes"])
+    g = evaluate_gates(compare(run("b", base), run("c", cand), run("c", [dict(base[3], gate=False)])),
+                       ["temporal.cut_through_word"])
+    assert any("technical_valid_rate" in x for x in g["critical"])

@@ -42,7 +42,8 @@ class AgentPolicy(BaseModel):
                                   "sources made of a few long scenes (e.g. a two-shot interview)")
     captions_follow_reference: bool = Field(
         default=False, description="with a reference video that has NO captions, skip captions unless the "
-                                   "instructions or creator preferences ask for them")
+                                   "instructions or creator preferences ask for them",
+        json_schema_extra={"scope": "reference"})
 
 
 class AgentConfig(BaseModel):
@@ -74,6 +75,20 @@ class AgentConfig(BaseModel):
     @property
     def version(self) -> str:
         return f"{AGENT_NAME}-{self.release}+{self.config_hash()}"
+
+    def scope(self) -> str | None:
+        """Which tasks this config can behave differently on, relative to the defaults.
+
+        A knob may declare a scope (`json_schema_extra={"scope": ...}`): the condition without which its
+        code path is identical to the default (a unit test pins each claim). "reference" = the task has a
+        style reference. When EVERY change is scoped the same way and there are no prompt addenda, tasks
+        outside the scope run the baseline's code, so experiments use them as an A/A noise control
+        instead of as evidence. None = any task may be affected."""
+        if self.planner_addendum.strip() or self.repair_addendum.strip() or not self.policy_delta():
+            return None
+        fields = AgentPolicy.model_fields
+        scopes = {(fields[k].json_schema_extra or {}).get("scope") for k in self.policy_delta()}
+        return scopes.pop() if len(scopes) == 1 and None not in scopes else None
 
     def describe(self) -> dict:
         return {"version": self.version, "policy_changes": self.policy_delta(),

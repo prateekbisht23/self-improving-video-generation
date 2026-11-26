@@ -10,7 +10,13 @@
   such a task is excluded on BOTH sides and listed. Round 3 lost a baseline task to a DNS outage.
 - A task that newly fails under the candidate is "confirmed" only if a re-run of the candidate fails
   again (`confirm` run); otherwise it is reported as flaky. One run per version cannot tell one bad
-  draw from a regression (the unchanged baseline itself failed if-02 on one of three runs).
+  draw from a regression (the unchanged baseline itself failed if-02 on one of three runs). The same
+  holds for a task that newly fails the TECHNICAL GATE. `after_rerun` recomputes completion and
+  technical validity with flaky tasks taking their re-run result; the critical gates use it.
+- Scope: when the candidate's changes can only act on some tasks (AgentConfig.scope), tasks outside
+  it run the baseline's code. Their differences are noise by construction, so `scope` holds the
+  comparison over in-scope tasks only, and `control` the per-check flip counts outside it: an A/A
+  noise measurement taken in the same experiment, under the same provider conditions.
 """
 
 import random
@@ -54,22 +60,30 @@ def _rates(rows: list[dict]) -> dict:
             "technical_valid_rate": round(sum(bool(r.get("gate")) for r in rows) / n, 3)}
 
 
-def compare(base: dict, cand: dict, confirm: dict | None = None) -> dict:
-    if base["dataset_version"] != cand["dataset_version"] or base["evaluator_version"] != cand["evaluator_version"]:
-        raise ValueError("runs used different dataset or evaluator versions; they are not comparable")
-    b, c = _by_task(base), _by_task(cand)
-    common = sorted(set(b) & set(c))
-    infra = sorted(t for t in common if b[t].get("status") == "error" or c[t].get("status") == "error")
-    tasks = [t for t in common if t not in infra]
+def _flips(b: dict, c: dict, tasks: list[str]) -> dict[str, dict]:
+    """Per check: on how many tasks (both rendered) did the verdict change?"""
+    out: dict[str, dict] = {}
+    for t in tasks:
+        if not (b[t].get("evaluation_id") and c[t].get("evaluation_id")):
+            continue
+        for k, v in b[t]["checks"].items():
+            w = c[t]["checks"].get(k)
+            if v is not None and w is not None:
+                f = out.setdefault(k, {"n": 0, "flips": 0})
+                f["n"] += 1
+                f["flips"] += int(v != w)
+    return out
+
+
+def _core(b: dict, c: dict, tasks: list[str], bs: dict, cs: dict, rerun: dict) -> dict:
     both_done = {t for t in tasks if b[t].get("evaluation_id") and c[t].get("evaluation_id")}
-    bs = {k: v for k, v in (base.get("summary") or {}).items() if k in RUN_METRICS}
-    cs = {k: v for k, v in (cand.get("summary") or {}).items() if k in RUN_METRICS}
-    bs |= _rates([b[t] for t in tasks])  # over comparable tasks only (infrastructure errors excluded)
-    cs |= _rates([c[t] for t in tasks])
+    bs = bs | _rates([b[t] for t in tasks])  # over comparable tasks only (infrastructure errors excluded)
+    cs = cs | _rates([c[t] for t in tasks])
     metrics = {k: {"baseline": bs.get(k), "candidate": cs.get(k),
                    "delta": round(cs[k] - bs[k], 3) if bs.get(k) is not None and cs.get(k) is not None else None}
                for k in RUN_METRICS}
-    br, cr = check_rates(base["results"], both_done), check_rates(cand["results"], both_done)
+    br = check_rates([b[t] for t in tasks], both_done)
+    cr = check_rates([c[t] for t in tasks], both_done)
     checks = {}
     for k in sorted(set(br) | set(cr)):
         bp = br[k][0] / br[k][1] if k in br else None
@@ -91,15 +105,45 @@ def compare(base: dict, cand: dict, confirm: dict | None = None) -> dict:
                 for sp, v in sorted(splits.items())}
     d = list(diffs.values())
     newly_failed = sorted(t for t in tasks if b[t].get("evaluation_id") and not c[t].get("evaluation_id"))
-    rerun = _by_task(confirm) if confirm else {}
     flaky = [t for t in newly_failed if (rerun.get(t) or {}).get("evaluation_id")]
-    return {"baseline_version": base["agent_version"], "candidate_version": cand["agent_version"],
-            "tasks": len(tasks), "both_rendered": len(both_done), "metrics": metrics, "checks": checks,
-            "by_split": by_split,
+    gate_failed = sorted(t for t in both_done if b[t].get("gate") and not c[t].get("gate"))
+    gate_flaky = [t for t in gate_failed if (rerun.get(t) or {}).get("gate")]
+    redo = set(flaky) | set(gate_flaky)
+    after = _rates([rerun[t] if t in redo else c[t] for t in tasks])
+    after_rerun = {k: {"baseline": bs[k], "candidate": after[k], "delta": round(after[k] - bs[k], 3)}
+                   for k in after}
+    return {"tasks": len(tasks), "both_rendered": len(both_done), "metrics": metrics, "checks": checks,
+            "by_split": by_split, "after_rerun": after_rerun,
             "paired": {"mean_diff": round(statistics.fmean(d), 4) if d else 0.0, "ci95": bootstrap_ci(d),
                        "wins": sum(x > 0.001 for x in d), "ties": sum(abs(x) <= 0.001 for x in d),
                        "losses": sum(x < -0.001 for x in d), "per_task": diffs},
             "newly_failed": newly_failed, "flaky": flaky,
-            "confirmed_failed": [t for t in newly_failed if t not in flaky], "rerun": confirm is not None,
-            "newly_rendered": sorted(t for t in tasks if c[t].get("evaluation_id") and not b[t].get("evaluation_id")),
-            "excluded_infra_errors": infra}
+            "confirmed_failed": [t for t in newly_failed if t not in flaky],
+            "gate_failed": gate_failed, "gate_flaky": gate_flaky,
+            "gate_confirmed_failed": [t for t in gate_failed if t not in gate_flaky],
+            "newly_rendered": sorted(t for t in tasks if c[t].get("evaluation_id") and not b[t].get("evaluation_id"))}
+
+
+def compare(base: dict, cand: dict, confirm: dict | None = None, scope: dict | None = None) -> dict:
+    """`scope`: {"name": ..., "tasks": [in-scope task ids]} when the candidate is scoped (else None)."""
+    if base["dataset_version"] != cand["dataset_version"] or base["evaluator_version"] != cand["evaluator_version"]:
+        raise ValueError("runs used different dataset or evaluator versions; they are not comparable")
+    b, c = _by_task(base), _by_task(cand)
+    common = sorted(set(b) & set(c))
+    infra = sorted(t for t in common if b[t].get("status") == "error" or c[t].get("status") == "error")
+    tasks = [t for t in common if t not in infra]
+    bs = {k: v for k, v in (base.get("summary") or {}).items() if k in RUN_METRICS}
+    cs = {k: v for k, v in (cand.get("summary") or {}).items() if k in RUN_METRICS}
+    rerun = _by_task(confirm) if confirm else {}
+    out = {"baseline_version": base["agent_version"], "candidate_version": cand["agent_version"],
+           **_core(b, c, tasks, bs, cs, rerun), "rerun": confirm is not None, "excluded_infra_errors": infra}
+    if scope:
+        inside = [t for t in tasks if t in set(scope["tasks"])]
+        outside = [t for t in tasks if t not in set(scope["tasks"])]
+        # run-level summaries are over all tasks: recompute them over the scope only
+        keep = {"completion_rate", "technical_valid_rate"}
+        out["scope"] = {"name": scope["name"], "task_ids": inside,
+                        **_core(b, c, inside, {k: v for k, v in bs.items() if k in keep},
+                                {k: v for k, v in cs.items() if k in keep}, rerun)}
+        out["control"] = {"task_ids": outside, "checks": _flips(b, c, outside)}
+    return out
