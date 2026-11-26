@@ -109,9 +109,11 @@ def evaluate_gates(cmp: dict, targets: list[str], advisory: dict[str, str] | Non
         notes.append(f"scope '{view['name']}': gates use the {view['tasks']} in-scope tasks; the "
                      f"{len(cmp['control']['task_ids'])} others ran the baseline's code (A/A control). "
                      f"Control flips: {moved or 'none'}")
-        if cmp["newly_failed"] != view["newly_failed"] or cmp.get("gate_failed") != view.get("gate_failed"):
-            notes.append(f"out-of-scope (noise by construction): render failures {cmp['newly_failed']}, "
-                         f"technical gate {cmp.get('gate_failed')}")
+        out_render = sorted(set(cmp["newly_failed"]) - set(view["newly_failed"]))
+        out_gate = sorted(set(cmp.get("gate_failed") or []) - set(view.get("gate_failed") or []))
+        if out_render or out_gate:
+            notes.append(f"out-of-scope (noise by construction): render failures {out_render}, "
+                         f"technical gate {out_gate}")
     for cid, v in view["checks"].items():
         if v["delta"] is None:
             continue

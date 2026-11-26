@@ -187,6 +187,55 @@ The cost *did* repeat: shot_durations dropped on dev/val (−10 points) and agai
 
 That is the point of a holdout. The gates said "eligible"; the holdout says "the benefit isn't established and a cost is". The experiment is `awaiting_approval`, and the decision is a human's.
 
+### Captions only (`9fe70e55` → re-gated `25bed9cd`): noise, measured, and one real defect
+After `c11acf32` was declined, the next candidate was the captions-only config. The loop had already generated it in round 2 (`a8f89929be9d`), where it was rejected on single-run noise, so it was re-tested with `retest`. The run was rejected by:
+- `instruction.adherence` 91% → 67%;
+- `technical_valid_rate` dropping (one task, `rs-01`);
+- the paired mean.
+
+Reading the evidence changed how experiments work.
+
+**Most of this experiment was an A/A test.**
+- `_skip_captions` returns early without a style reference, so on 20 of the 24 tasks the candidate ran exactly the baseline's code.
+- 4 of the 6 adherence losses were on those tasks.
+- The judge's reasons ("cuts off mid-thought", "repeats a section") had nothing to do with captions.
+
+So knobs can now declare a **scope**: `json_schema_extra={"scope": "reference"}`, read by `AgentConfig.scope()`, with a unit test pinning each claim. For a scoped candidate:
+- The comparison keeps the out-of-scope tasks as an **in-experiment A/A control**: same run, same provider conditions, identical code.
+- The gates judge only the in-scope tasks. Each check change must beat that check's own control flip rate, using a one-sided binomial tail with α = 0.05.
+
+What the control measured, as the share of identical-code tasks where a check flipped:
+
+| check | flips |
+|---|---|
+| instruction.adherence | 5/17 |
+| narrative.structure | 6/18 |
+| temporal.cut_through_word | 6/18 |
+| temporal.repeated_footage | 5/18 |
+| visual.framing | 5/18 |
+| captions.accuracy | 3/18 |
+| technical.black_frames | 2/18 |
+
+A single run per version can't see through a 30% flip rate. Round 2's "regressions" were this noise.
+
+**Two more consistency fixes:**
+- A task that newly fails the technical gate now gets the same confirmation re-run as one that fails to render.
+- The critical rates count the re-run result for flaky tasks; before, a flaky render still lowered completion. `rs-01` passed its re-run.
+
+**eval-1.3:** `frozen_frames` now inspects the *rendered 9:16 window* of the source, using the renderer's own `crop_filter`. Under eval-1.2, motion outside the crop made a still visible window count as "not static". That false fault came from the eval-1.2 fix itself.
+
+**Re-gated** (`rescore`, which now also tops up confirmation runs the current rules require):
+- **Improvement:** caption_match 0 → 100% on all 4 reference tasks (p = 0.001 against the control).
+- **Within noise:** adherence (p = 0.11); the paired-mean CI includes 0.
+- **Still rejected,** by one regression beyond noise: **technical.black_frames 100% → 50%** (p = 0.017).
+
+That one is real:
+- The planner picks footage containing short dips to black (fades in the NASA source), in the baseline too.
+- With captions over a dip, `blackdetect` (98% of pixels dark) doesn't fire.
+- Remove the captions and the viewer sees bare black frames.
+
+The evaluator isn't wrong here. Text over black reads as a caption card, while bare black is a dead frame. The knob does what it promises and exposes a planner defect that captions were hiding. The fix is on the agent side, not in the check.
+
 ## Try this
 1. `uv run python -m improvement.cli status`: versions, experiments, promotions.
 2. Read the latest `benchmarks/results/experiments/*-report.md`. Would you approve it? What evidence is missing?
