@@ -11,7 +11,8 @@ from services.api.routes import assets, edits, improvement, memory, projects, se
 get_settings()  # export .env for SDKs used in request handlers (embeddings for search)
 
 app = FastAPI(title="Self-Improving Video Editing Agent", version="0.4.0")
-app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:3000"],
+# Local tool, single user: any localhost port may call the API (the web app runs on 3010).
+app.add_middleware(CORSMiddleware, allow_origin_regex=r"http://(localhost|127\.0\.0\.1)(:\d+)?",
                    allow_methods=["*"], allow_headers=["*"])
 app.include_router(projects.router)
 app.include_router(assets.router)

@@ -46,8 +46,18 @@ uv run python -m benchmarks.runner --split holdout --allow-holdout   # final ass
 # standalone (no DB) analysis + first graph
 uv run python -m perception.context samples/nasa_interview.mp4 -o out/nasa_interview.json
 uv run python -m agent.graphs.hello_graph out/nasa_interview.json
-cd apps/web && bun dev                      # http://localhost:3000
 ```
+
+## Use the app
+```bash
+docker compose up -d
+uv run python -m services.worker.worker              # terminal 1: background jobs
+uv run uvicorn services.api.main:app --port 8010     # terminal 2: API
+cd apps/web && bun install && bun dev                # terminal 3: http://localhost:3010
+```
+Create a project, upload footage, describe the edit, then inspect the render, its evaluation and the
+agent's versions; give feedback; review experiments and compare agent versions under **Improvement**.
+A step-by-step walkthrough is in [`docs/demo.md`](docs/demo.md).
 
 Sample footage credits: see [`samples/manifest.yaml`](samples/manifest.yaml).
 
@@ -60,4 +70,4 @@ Sample footage credits: see [`samples/manifest.yaml`](samples/manifest.yaml).
 | 3 | Independent evaluation engine | done |
 | 4 | Creator memory & predictive editing | done |
 | 5 | Failure diagnosis & self-improvement | done (active: `editing-agent-0.3+20c1ce52b422`) |
-| 6 | Frontend, integration & demo | planned |
+| 6 | Frontend, integration & demo | in progress |

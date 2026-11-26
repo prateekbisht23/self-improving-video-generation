@@ -112,3 +112,20 @@ Invariants added:
 - scoped candidates (knob `scope`) are gated on in-scope tasks against an in-experiment A/A control
   (out-of-scope tasks run baseline code); flips must beat the control's rate (binomial tail, alpha 0.05);
 - editing and evaluation graphs compile with `checkpointer=False` so a resumed parent never replays them.
+
+## Phase 6 additions
+```
+apps/web (Next.js, :3010)  ──fetch/CORS──►  services/api (FastAPI, :8010)  ──enqueue──►  RQ worker
+  /                       projects                                         processing, edit, render, evaluate
+  /projects/[id]          upload (XHR progress), assets+stages, new edit, scene search
+  /edits/[id]             preview ◄─ /renders/{id}/video (HTTP range)
+                          timeline + issue markers (evidence in output seconds), versions, evaluation,
+                          evaluation diff, feedback ─► memory graph (interrupt → confirm in UI), action log
+  /memory                 preferences, pending confirmations
+  /improvement            versions, promotions, experiments, failure clusters
+  /improvement/experiments/[id]   gates, scoped comparison + A/A control, holdout, approve/decline
+                                  ─► POST /decision resumes the improvement graph's interrupt
+  /improvement/compare    config diff between versions + the experiments that compared them
+```
+- The browser polls while jobs run (`useApi` with a data-dependent delay); there's no push channel.
+- The UI and the CLI resume the same LangGraph checkpoints, so a decision taken in one shows up in the other.
