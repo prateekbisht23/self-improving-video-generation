@@ -6,6 +6,8 @@
     uv run python -m improvement.cli retest <experiment-id> --reason "..."   # re-test a candidate after a code fix
     uv run python -m improvement.cli rescore <experiment-id> --check technical.frozen_frames --reason "..."
                                                               # re-score stored renders after a check fix
+    uv run python -m improvement.cli submit --by <name> --set knob=value ... --target <check> --hypothesis "..."
+                                                              # a human-written candidate, same experiment path
     uv run python -m improvement.cli approve <thread> --by <name> [--note ...]
     uv run python -m improvement.cli decline <thread> --by <name> [--note ...]
     uv run python -m improvement.cli status                   # versions, experiments, promotions
@@ -69,6 +71,13 @@ def main() -> None:
     rs.add_argument("experiment")
     rs.add_argument("--check", action="append", required=True)
     rs.add_argument("--reason", required=True)
+    sb = sub.add_parser("submit")
+    sb.add_argument("--by", required=True)
+    sb.add_argument("--set", action="append", required=True, help="knob=value")
+    sb.add_argument("--target", action="append", required=True)
+    sb.add_argument("--hypothesis", required=True)
+    sb.add_argument("--expected", default="")
+    sb.add_argument("--risks", default="")
     for name in ("approve", "decline"):
         d = sub.add_parser(name)
         d.add_argument("thread")
@@ -90,6 +99,16 @@ def main() -> None:
         print(json.dumps(ig.start(a.max_clusters), indent=2, default=str))
     elif a.cmd == "retest":
         print(json.dumps(ig.retest(a.experiment, a.reason), indent=2, default=str))
+    elif a.cmd == "submit":
+        from improvement.candidates.generate import CandidateProposal, PolicyChanges
+
+        knobs = {}
+        for kv in a.set:
+            k, v = kv.split("=", 1)
+            knobs[k] = {"true": True, "false": False}.get(v.lower(), v)
+        p = CandidateProposal(hypothesis=a.hypothesis, target_checks=a.target, policy_changes=PolicyChanges(**knobs),
+                              expected_effect=a.expected, risks=a.risks)
+        print(json.dumps(ig.submit(p, a.by), indent=2, default=str))
     elif a.cmd == "rescore":
         print(json.dumps(ig.rescore(a.experiment, a.reason, a.check), indent=2, default=str))
     elif a.cmd == "resume":

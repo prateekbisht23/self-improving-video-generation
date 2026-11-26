@@ -44,6 +44,11 @@ class AgentPolicy(BaseModel):
         default=False, description="with a reference video that has NO captions, skip captions unless the "
                                    "instructions or creator preferences ask for them",
         json_schema_extra={"scope": "reference"})
+    trim_black: Literal["off", "when_captions_skipped", "always"] = Field(
+        default="off", description="move clip edges so clips avoid dips to black in the rendered window "
+                                   "('when_captions_skipped': only in edits where captions_follow_reference "
+                                   "dropped the captions that used to cover such dips)",
+        json_schema_extra={"scope_by_value": {"when_captions_skipped": "reference"}})
 
 
 class AgentConfig(BaseModel):
@@ -87,7 +92,11 @@ class AgentConfig(BaseModel):
         if self.planner_addendum.strip() or self.repair_addendum.strip() or not self.policy_delta():
             return None
         fields = AgentPolicy.model_fields
-        scopes = {(fields[k].json_schema_extra or {}).get("scope") for k in self.policy_delta()}
+
+        def field_scope(k: str, v) -> str | None:
+            extra = fields[k].json_schema_extra or {}
+            return extra.get("scope") or (extra.get("scope_by_value") or {}).get(v)
+        scopes = {field_scope(k, v) for k, v in self.policy_delta().items()}
         return scopes.pop() if len(scopes) == 1 and None not in scopes else None
 
     def describe(self) -> dict:

@@ -219,3 +219,43 @@ def test_snapping_never_breaks_a_constraint_the_plain_action_meets(synthetic, tm
     deps.recorder.actions.clear()
     eg.execute(state | {"max_duration": 15}, {"configurable": {"deps": deps}})
     assert deps.recorder.actions[-1]["args"]["src_in"] == pytest.approx(0.0)
+
+
+def test_black_free_keeps_the_longest_clear_part():
+    from editing.black import black_free
+
+    assert black_free(0, 5, []) == (0, 5)
+    assert black_free(10, 16, [(10.4, 11.4)]) == (11.5, 16)            # fade at the start
+    assert black_free(0, 6, [(2.0, 2.5)]) == (2.6, 6)                  # the longer side wins
+    assert black_free(0, 1.2, [(0.3, 0.6)]) == (0, 1.2)                # nothing usable left: unchanged
+    assert black_free(0, 10, [(1, 8)]) == (0, 10)                      # would cut most of the clip: unchanged
+
+
+def test_trim_black_moves_clip_edges_off_a_dip_only_where_captions_were_skipped(synthetic, tmp_path):
+    from agent.config import AgentConfig, AgentPolicy
+    from editing.context import SceneInfo
+    from editing.timeline.schema import AssetRef
+    from perception.video.black import black_spans
+
+    ctx = synthetic_context(synthetic)
+    ctx.assets.append(AssetRef(id="bg", path=str(synthetic / "black_gap.mp4"), duration=6.0))
+    ctx.scenes["S5"] = SceneInfo("S5", "d5", "bg", 0, 0.0, 6.0, "colour, black, colour")
+    spans = black_spans(str(synthetic / "black_gap.mp4"), 0.0, 6.0)
+    assert len(spans) == 1 and spans[0][0] == pytest.approx(2.0, abs=0.1) and spans[0][1] == pytest.approx(4.0, abs=0.1)
+
+    cfg = AgentConfig(policy=AgentPolicy(captions_follow_reference=True, trim_black="when_captions_skipped"))
+    act = {"name": "select_clip", "source": "plan", "args": {"scene_id": "S5", "src_in": 0.0, "src_out": 3.5}}
+    tl = eg.Timeline(assets=ctx.assets, output=eg.OutputSpec(min_duration=1, max_duration=10))
+    state = {"instructions": "short teaser", "memory_text": ""}
+    rec = InMemoryRecorder(out_dir=tmp_path, do_render=False)
+    no_caps = {"observed": {"captions_present": False}, "guidance": {}}
+    out = eg._black_args(tl, act, EditDeps(ctx=ctx, recorder=rec, config=cfg, style=no_caps), state, act["args"])
+    assert out["src_in"] == 0.0 and out["src_out"] == pytest.approx(1.9, abs=0.1)
+    # scope: without a style reference (or when captions were asked for) the knob is inert
+    assert eg._black_args(tl, act, EditDeps(ctx=ctx, recorder=rec, config=cfg), state, act["args"]) == act["args"]
+    asked = state | {"instructions": "short teaser with captions"}
+    assert eg._black_args(tl, act, EditDeps(ctx=ctx, recorder=rec, config=cfg, style=no_caps), asked,
+                          act["args"]) == act["args"]
+    always = AgentConfig(policy=AgentPolicy(trim_black="always"))
+    assert eg._black_args(tl, act, EditDeps(ctx=ctx, recorder=rec, config=always), state, act["args"]) != act["args"]
+    assert cfg.scope() == "reference" and always.scope() is None

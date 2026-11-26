@@ -460,6 +460,41 @@ def _paused(g, thread: str) -> tuple[bool, bool]:
     return bool(st.values) and bool(st.next), any(t.interrupts for t in st.tasks)
 
 
+def submit(proposal, by: str, deps: ImproveDeps | None = None, g=None) -> dict:
+    """A HUMAN-written candidate (a CandidateProposal) enters the loop after `propose`.
+
+    For a knob a human just implemented in response to an experiment (trim_black, after the
+    captions-only round exposed dips to black). Recorded with origin "human" and its author; from
+    here everything is the same as for a generated candidate: interleaved runs, gates, holdout,
+    and approval by a human."""
+    from improvement.candidates.generate import build_candidate
+
+    with session_scope() as s:
+        base = registry.active(s)
+        last = s.scalar(select(Experiment).where(Experiment.baseline_version == base.version)
+                        .order_by(Experiment.created_at.desc()))
+        if last is None:
+            raise ValueError("no analysis to attach to: run `improvement.cli start` first")
+        cfg, change = build_candidate(base, proposal, None, release=_bump(base.release))
+        registry.register(s, cfg, parent=base.version, origin="human", rationale=proposal.hypothesis)
+        thread = f"improve-{uuid.uuid4()}"
+        exp = Experiment(name=f"{base.version} vs {cfg.version}", analysis_id=last.analysis_id,
+                         baseline_version=base.version, candidate_version=cfg.version,
+                         dataset_version=dataset_version(), evaluator_version=EVALUATOR_VERSION,
+                         models={r: model_id(r) for r in ("planner", "judge", "improver")}, splits=SELECTION_SPLITS,
+                         change=change | {"origin": "human", "submitted_by": by}, n_runs=1, status="created",
+                         thread_id=thread)
+        s.add(exp)
+        s.flush()
+        values = {"baseline_version": base.version, "candidate_version": cfg.version, "experiment_id": str(exp.id),
+                  "analysis_id": str(last.analysis_id), "diagnoses": [],
+                  "log": [f"human candidate {cfg.version} by {by}: {proposal.hypothesis[:200]}"]}
+    g = g or graph()
+    cfg_ = _cfg(thread, deps, "improvement_submit")
+    g.update_state(cfg_, values, as_node="propose")  # the next node is `experiment`
+    return _result(g.invoke(None, cfg_), thread)
+
+
 def resume(thread: str, deps: ImproveDeps | None = None, g=None) -> dict:
     """Continue a run that stopped with an error (e.g. quota) from its last finished node."""
     g = g or graph()

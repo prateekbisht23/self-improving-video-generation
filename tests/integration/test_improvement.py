@@ -307,3 +307,25 @@ def test_decide_and_resume_refuse_threads_with_nothing_to_resume(deps):
     assert ig.decide(out["thread_id"], "decline", by="prateek", deps=d, g=g)["status"] == "declined"
     with pytest.raises(ValueError):
         ig.decide(out["thread_id"], "approve", by="prateek", deps=d, g=g)  # already decided
+
+
+def test_human_candidate_goes_through_the_same_experiment_path(deps):
+    from improvement.candidates.generate import CandidateProposal, PolicyChanges
+
+    d, g = deps(), ig.build_graph(InMemorySaver())
+    with pytest.raises(ValueError, match="no analysis"):
+        ig.submit(CandidateProposal(hypothesis="h", target_checks=["temporal.cut_through_word"],
+                                    policy_changes=PolicyChanges(snap_cuts="word"), expected_effect="", risks=""),
+                  by="prateek", deps=d, g=g)
+    first = ig.start(deps=d, g=g)
+    ig.decide(first["thread_id"], "decline", by="prateek", deps=d, g=g)
+    p = CandidateProposal(hypothesis="word snapping, written by a human", target_checks=["temporal.cut_through_word"],
+                          policy_changes=PolicyChanges(snap_cuts="word", max_repairs=5), expected_effect="+",
+                          risks="-")
+    out = ig.submit(p, by="prateek", deps=d, g=g)
+    assert out["status"] == "awaiting_approval" and len(d.assessed) == 2
+    with session_scope() as s:
+        exp = s.scalar(select(Experiment).where(Experiment.thread_id == out["thread_id"]))
+        assert exp.change["origin"] == "human" and exp.change["submitted_by"] == "prateek"
+        row = s.scalar(select(AgentVersion).where(AgentVersion.version == exp.candidate_version))
+        assert row.origin == "human" and registry.active(s).version == DEFAULT_CONFIG.version

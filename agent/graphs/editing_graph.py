@@ -31,10 +31,12 @@ from agent.prompts.editing import PLANNER_HUMAN, REPAIR_HUMAN
 from agent.runtime import EditDeps
 from agent.schemas.plan import EditPlan
 from config.models import get_chat_model, model_id
+from editing.black import black_free
 from editing.context import EditContext
 from editing.operations import OPERATIONS, READ_ONLY, apply_action
 from editing.snapping import next_sentence_end, snap_clip
 from editing.timeline.schema import OutputSpec, Timeline
+from perception.video.black import black_spans
 
 # Behaviour comes from a versioned AgentConfig (agent/config.py). The default config is v0.2.
 AGENT_VERSION = DEFAULT_CONFIG.version
@@ -228,6 +230,34 @@ def _snap_args(tl: Timeline, act: Action, deps: EditDeps) -> dict:
     return args
 
 
+def _black_args(tl: Timeline, act: Action, deps: EditDeps, state: EditState, args: dict) -> dict:
+    """Policy trim_black: move select_clip / trim_clip edges off dips to black in the rendered window.
+    A refinement like snapping, so the same guard applies (`_snap_breaks` in execute)."""
+    mode = deps.config.policy.trim_black
+    if mode == "off" or act["name"] not in ("select_clip", "trim_clip"):
+        return args
+    if mode == "when_captions_skipped" and not _skip_captions(deps, state):
+        return args
+    try:
+        if act["name"] == "select_clip":
+            sc = deps.ctx.scene(args["scene_id"])
+            src_in = args["src_in"] if args.get("src_in") is not None else sc.start
+            src_out = args["src_out"] if args.get("src_out") is not None else sc.end
+            asset, crop_x = sc.asset_id, 0.5
+        else:
+            c = tl.video[args["index"]]
+            src_in = args["src_in"] if args.get("src_in") is not None else c.src_in
+            src_out = args["src_out"] if args.get("src_out") is not None else c.src_out
+            asset, crop_x = c.asset_id, c.crop_x
+        path = next(a.path for a in deps.ctx.assets if a.id == asset)
+        o = tl.output
+        spans = black_spans(path, float(src_in), float(src_out), crop_x, o.width, o.height)
+    except (KeyError, IndexError, TypeError, ValueError, StopIteration):
+        return args  # invalid args: the operation reports the error as usual
+    new_in, new_out = black_free(float(src_in), float(src_out), spans)
+    return args | {"src_in": new_in, "src_out": new_out} if (new_in, new_out) != (src_in, src_out) else args
+
+
 def _snap_breaks(state: EditState, deps: EditDeps, plain: Timeline, snapped: Timeline) -> str | None:
     """Snapping is a refinement: it must not break a constraint the unsnapped action satisfies.
 
@@ -264,7 +294,7 @@ def next_action(state: EditState, config: RunnableConfig) -> EditState:
 def execute(state: EditState, config: RunnableConfig) -> EditState:
     deps, act = _deps(config), state["current"]
     tl = _tl(state)
-    plain_args, args = dict(act["args"]), _snap_args(tl, act, deps)
+    plain_args, args = dict(act["args"]), _black_args(tl, act, deps, state, _snap_args(tl, act, deps))
     res = apply_action(tl, act["name"], args, deps.ctx)
     if args != plain_args:  # keep the snap only if it breaks nothing the plain action satisfies
         plain = apply_action(tl, act["name"], plain_args, deps.ctx)
