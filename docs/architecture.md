@@ -98,10 +98,17 @@ improvement graph (LangGraph + PostgresSaver, thread improve-<uuid>)
   final_assessment   holdout, only after gates pass (improvement/experiments/holdout.py is the only reader)
   approval     interrupt() ─► CLI `approve|decline` or POST /improvement/experiments/{id}/decision
   decide       registry.promote(): retire old, activate new, promotions row, agent/configs/<version>.json
+
+side entries (same graph, same gates/holdout/approval):
+  retest   after a code fix      update_state(as_node="propose")
+  rescore  after an evaluator fix (deterministic checks only, stored renders)  update_state(as_node="experiment")
+  submit   human-written candidate (origin=human)
 ```
 Invariants added:
 - the improvement loop changes configuration (knobs, prompt addenda), never code;
 - diagnosis reads development only; holdout is read only by `holdout.py` (AST-enforced test);
 - runs are compared only when version, evaluator, dataset, splits, models and creator isolation match;
 - promotion needs a human decision, passed gates, and an unchanged active baseline;
+- scoped candidates (knob `scope`) are gated on in-scope tasks against an in-experiment A/A control
+  (out-of-scope tasks run baseline code); flips must beat the control's rate (binomial tail, alpha 0.05);
 - editing and evaluation graphs compile with `checkpointer=False` so a resumed parent never replays them.

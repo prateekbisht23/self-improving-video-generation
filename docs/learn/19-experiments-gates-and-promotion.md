@@ -236,6 +236,37 @@ That one is real:
 
 The evaluator isn't wrong here. Text over black reads as a caption card, while bare black is a dead frame. The knob does what it promises and exposes a planner defect that captions were hiding. The fix is on the agent side, not in the check.
 
+### Human candidate (`01098cc0`): promoted
+
+The fix for that defect is code, so a human wrote it and submitted the candidate. The loop doesn't invent behaviour; it only turns knobs that exist.
+
+- **New knob** `trim_black` (`off` | `when_captions_skipped` | `always`). `perception/video/black.py` runs `blackdetect` inside the rendered 9:16 window, and `editing/black.py::black_free` keeps the longest clear piece of a clip. A clip stays as it is when that piece would be shorter than max(1 s, 40% of the clip). Like snapping, it runs inside `execute` and is kept only if it breaks no constraint.
+- **Scope by value:** `when_captions_skipped` only acts where `captions_follow_reference` drops captions, so the candidate as a whole is still scoped to reference tasks.
+- **Submitted with** `improvement.cli submit --by prateek --set captions_follow_reference=true --set trim_black=when_captions_skipped --target style.caption_match ...`. The record has `origin: human`. It goes through the same runs, gates, holdout and approval as an improver candidate. A human author gets no shortcut.
+
+Result (in-scope reference tasks, judged against the in-experiment A/A control):
+
+| | baseline | candidate |
+|---|---|---|
+| dev+val caption_match (rs-01..04) | 0% | 100% (p < 0.001) |
+| dev+val black_frames | 75% | 100% |
+| holdout caption_match (rs-05) | 0% | 100% |
+| holdout paired diff, in scope | | +0.012 |
+
+- **Other checks:** within control noise.
+- **Overall holdout paired diff:** −0.160. That comes from `if-08` missing its 20–28 s window (19.42 s). `if-08` is out of scope, so it ran the **baseline's** code. The miss is baseline noise by construction, and it is the reason the report shows the scope section next to the totals.
+- **Weakness, recorded with the decision:** the holdout has only one in-scope task. The evidence that the improvement generalises is a single task.
+
+Approved by a human; `registry.promote()` retired v0.2 and activated `editing-agent-0.3+20c1ce52b422`. The promoted config is written to `agent/configs/<version>.json`. Every new edit now uses it.
+
+**What the whole loop needed to get here:**
+- an evaluator fix (eval-1.2/1.3), found because a good candidate was rejected;
+- a measured noise floor, so gates judge flips against noise instead of against zero;
+- scoped experiments, so a narrow change isn't drowned out by tasks it can't affect;
+- a code fix for the defect the change exposed.
+
+None of those was a knob. The automatic part of self-improvement is the search over knobs. The surrounding judgement still comes from people.
+
 ## Try this
 1. `uv run python -m improvement.cli status`: versions, experiments, promotions.
 2. Read the latest `benchmarks/results/experiments/*-report.md`. Would you approve it? What evidence is missing?

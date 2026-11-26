@@ -1,0 +1,23 @@
+{
+  "version": "editing-agent-0.3+20c1ce52b422",
+  "parent": "editing-agent-0.2+d43dbd596cae",
+  "promoted_at": "2026-11-26T15:49:57.989628+00:00",
+  "experiment_id": "01098cc0-899e-4d1f-b2f8-53258ae734d3",
+  "approved_by": "prateek",
+  "config": {
+    "policy": {
+      "max_steps": 40,
+      "snap_cuts": "off",
+      "trim_black": "when_captions_skipped",
+      "max_repairs": 4,
+      "fixup_extend": false,
+      "snap_repairs": "same",
+      "snap_max_shift": 2.0,
+      "scene_reuse_check": true,
+      "captions_follow_reference": true
+    },
+    "release": "0.3",
+    "repair_addendum": "",
+    "planner_addendum": ""
+  }
+}
