@@ -430,17 +430,31 @@ def rescore(experiment_id: str, reason: str, checks: list[str], deps: ImproveDep
     return _result(g.invoke(None, cfg), thread)
 
 
+def _paused(g, thread: str) -> tuple[bool, bool]:
+    """(has a checkpoint with work left, is waiting at the approval interrupt)."""
+    st = g.get_state(_cfg(thread))
+    return bool(st.values) and bool(st.next), any(t.interrupts for t in st.tasks)
+
+
 def resume(thread: str, deps: ImproveDeps | None = None, g=None) -> dict:
     """Continue a run that stopped with an error (e.g. quota) from its last finished node."""
-    out = (g or graph()).invoke(None, _cfg(thread, deps, "improvement_resume"))
+    g = g or graph()
+    # invoke(None) on an unknown thread would START a new improvement round: refuse instead
+    if not _paused(g, thread)[0]:
+        raise ValueError(f"thread {thread} has nothing to resume (unknown or finished)")
+    out = g.invoke(None, _cfg(thread, deps, "improvement_resume"))
     return _result(out, thread)
 
 
 def decide(thread: str, decision: str, by: str, note: str = "", deps: ImproveDeps | None = None, g=None) -> dict:
     if decision not in ("approve", "decline"):
         raise ValueError("decision must be 'approve' or 'decline'")
-    out = (g or graph()).invoke(Command(resume={"decision": decision, "by": by, "note": note}),
-                                _cfg(thread, deps, "improvement_decision"))
+    g = g or graph()
+    # a Command on a thread with no pending interrupt would start a new round: refuse instead
+    if not _paused(g, thread)[1]:
+        raise ValueError(f"thread {thread} is not waiting for approval")
+    out = g.invoke(Command(resume={"decision": decision, "by": by, "note": note}),
+                 _cfg(thread, deps, "improvement_decision"))
     return _result(out, thread)
 
 

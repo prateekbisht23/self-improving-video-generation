@@ -1,6 +1,6 @@
 # Experiment editing-agent-0.2+d43dbd596cae vs editing-agent-0.3+97e3caa31076 (rescore)
 
-- experiment `c11acf32-9a5a-4b71-afcd-e135f3e49284` · status **awaiting_approval**
+- experiment `c11acf32-9a5a-4b71-afcd-e135f3e49284` · status **declined**
 - baseline `editing-agent-0.2+d43dbd596cae` → candidate `editing-agent-0.3+97e3caa31076`
 - dataset `bench-v1-840ca30bb4` · evaluator `eval-1.2` · splits ['development', 'validation'] · runs per version: 1
 - models: judge=google_genai:gemini-3.5-flash-lite, planner=google_genai:gemini-3.5-flash-lite, improver=google_genai:gemini-3.5-flash-lite
@@ -95,17 +95,21 @@ Advisory (not gating): visual.framing
 
 | metric | baseline | candidate | Δ |
 |---|---|---|---|
-| completion_rate | 1.0 | 1.0 | 0.0 |
-| technical_valid_rate | 1.0 | 1.0 | 0.0 |
-| mean_pass_rate | 0.861 | 0.848 | -0.013 |
 | mean_actions | 7.2 | 9.0 | 1.8 |
+| mean_pass_rate | 0.861 | 0.848 | -0.013 |
+| completion_rate | 1.0 | 1.0 | 0.0 |
 | repairs_per_task | 0.5 | 2.67 | 2.17 |
+| technical_valid_rate | 1.0 | 1.0 | 0.0 |
 
 Paired: mean Δ -0.013 (95% CI -0.065 … +0.027); wins 3 / ties 1 / losses 2.
 
 | check | baseline | candidate | n |
 |---|---|---|---|
-| instruction.must_include | 50% | 0% | 2 |
 | style.caption_match | 0% | 100% | 1 |
-| temporal.cut_through_word | 83% | 83% | 6 |
 | temporal.shot_durations | 83% | 50% | 6 |
+| instruction.must_include | 50% | 0% | 2 |
+| temporal.cut_through_word | 83% | 83% | 6 |
+
+## Decision
+
+declined by **prateek** at 2026-11-26 10:26:14.616329+00:00: holdout flat; shot_durations cost repeated

@@ -292,3 +292,18 @@ def test_rescore_regates_stored_renders_after_a_check_fix(deps, monkeypatch):
     assert cand["results"][0]["pass_rate"] == 1.0 and cand["results"][0]["failed"] == []
     with pytest.raises(ValueError):
         ig.rescore(first["experiment_id"], "again", ["temporal.cut_through_word"], deps=d, g=g)  # judge/other: no
+
+
+def test_decide_and_resume_refuse_threads_with_nothing_to_resume(deps):
+    """A mistyped thread id must not start a new improvement round (it did once: decline -> new round)."""
+    d, g = deps(), ig.build_graph(InMemorySaver())
+    with pytest.raises(ValueError, match="not waiting for approval"):
+        ig.decide("improve-unknown", "decline", by="prateek", deps=d, g=g)
+    with pytest.raises(ValueError, match="nothing to resume"):
+        ig.resume("improve-unknown", deps=d, g=g)
+    with session_scope() as s:
+        assert s.scalar(select(Experiment)) is None and not d.assessed
+    out = ig.start(deps=d, g=g)
+    assert ig.decide(out["thread_id"], "decline", by="prateek", deps=d, g=g)["status"] == "declined"
+    with pytest.raises(ValueError):
+        ig.decide(out["thread_id"], "approve", by="prateek", deps=d, g=g)  # already decided
