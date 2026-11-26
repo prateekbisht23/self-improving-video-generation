@@ -141,3 +141,26 @@ def test_evaluation_never_imports_the_agent():
             names = [a.name for a in node.names] if isinstance(node, ast.Import) else \
                 [node.module or ""] if isinstance(node, ast.ImportFrom) else []
             assert not any(n.startswith(("agent", "services")) for n in names), f"{py} imports {names}"
+
+
+def test_frozen_frames_separates_render_faults_from_still_source_shots(tmp_path):
+    from evaluation.evaluators.technical import frozen_check
+    from evaluation.features import Segment
+
+    still = tmp_path / "still.mp4"   # 1 s of motion, then 4 s of a locked-off frame
+    ffmpeg("-f", "lavfi", "-i", "testsrc2=s=320x240:r=30:d=1,tpad=stop_mode=clone:stop_duration=4", *V, str(still))
+    moving = tmp_path / "moving.mp4"
+    ffmpeg("-f", "lavfi", "-i", "testsrc2=s=320x240:r=30:d=5", *V, str(moving))
+
+    def tl(path):
+        return {"assets": [{"id": "a", "path": str(path)}],
+                "video": [{"asset_id": "a", "src_in": 0.0, "src_out": 0.5},
+                          {"asset_id": "a", "src_in": 1.5, "src_out": 4.5}]}
+
+    freeze = [Segment(start=0.5, end=3.5)]           # output 0.5-3.5 = second clip = source 1.5-4.5
+    ok = frozen_check(freeze, tl(still))
+    assert ok.passed and ok.measurements == {"faults": 0, "still_source": 1}
+    bad = frozen_check(freeze, tl(moving))           # the output froze although the source moves: a fault
+    assert not bad.passed and bad.evidence[0].detail == "no motion"
+    assert not frozen_check(freeze, None).passed      # no timeline: cannot explain it, so it stays a failure
+    assert frozen_check([Segment(start=0, end=1.9)], tl(moving)).passed  # shorter than the minimum

@@ -20,6 +20,7 @@ The PRD says "deterministic checks must be preferred where possible". **Severity
 ## Honest caveats built into the report
 - **Caption WER compares two ASR outputs** (source audio vs output audio). It measures *consistency* and catches broken mapping, desync or dropped words. It can't catch a word Whisper got wrong both times ("Paragee"). The check's `explanation` says so.
 - **`av_stream_alignment` is a proxy**: it compares stream lengths. It doesn't measure lip-sync offset.
+- **Deterministic isn't the same as right.** `frozen_frames` gives the same answer every time, but until `eval-1.2` it was answering the wrong question: it flagged still shots in the *source* (a locked-off moon) as render faults. Now each output freeze is traced back to the source through the timeline, and only freezes the source doesn't explain fail. Found by a Phase 5 experiment (note 19).
 - **No calibrated "quality score"**: `pass_rate` is the share of applicable checks passed, labelled uncalibrated (PRD FR-09).
 
 ## LLM-as-judge pitfalls (and what we do about them)

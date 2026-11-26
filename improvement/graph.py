@@ -18,6 +18,7 @@ selected on development + validation. Holdout is touched once, by `final_assessm
 import uuid
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any, TypedDict
 
 from langgraph.graph import END, START, StateGraph
@@ -200,7 +201,6 @@ def experiment_node(state: ImproveState, config) -> ImproveState:
 
 def gates_node(state: ImproveState, config) -> ImproveState:
     import json
-    from pathlib import Path
 
     deps = _deps(config)
     base = json.loads(Path(state["baseline_run"]).read_text())
@@ -342,6 +342,41 @@ def start(max_clusters: int = 3, deps: ImproveDeps | None = None, g=None) -> dic
     return _result(out, thread)
 
 
+def _reopen(experiment_id: str, change: dict, label: str) -> tuple[Experiment, str, dict]:
+    """Shared by retest/rescore: a NEW experiment for an earlier rejected or declined candidate."""
+    with session_scope() as s:
+        old = s.get(Experiment, uuid.UUID(experiment_id))
+        if old is None or old.status not in ("rejected", "declined"):
+            raise ValueError(f"only a rejected or declined experiment can be {label}")
+        if registry.active(s).version != old.baseline_version:
+            raise ValueError(f"the active version is no longer {old.baseline_version}")
+        thread = f"improve-{uuid.uuid4()}"
+        exp = Experiment(name=f"{old.baseline_version} vs {old.candidate_version} ({label})",
+                         analysis_id=old.analysis_id, baseline_version=old.baseline_version,
+                         candidate_version=old.candidate_version, dataset_version=dataset_version(),
+                         evaluator_version=EVALUATOR_VERSION,
+                         models={r: model_id(r) for r in ("planner", "judge", "improver")}, splits=SELECTION_SPLITS,
+                         change={**old.change, **change}, n_runs=1, status="created", thread_id=thread)
+        s.add(exp)
+        row = s.scalar(select(AgentVersion).where(AgentVersion.version == old.candidate_version))
+        row.status = "candidate"
+        s.flush()
+        values = {"baseline_version": old.baseline_version, "candidate_version": old.candidate_version,
+                  "experiment_id": str(exp.id), "analysis_id": str(old.analysis_id), "diagnoses": []}
+        runs = {"old_id": str(old.id), "baseline": old.baseline_run, "candidate": old.candidate_run,
+                "new_id": str(exp.id)}
+    return runs, thread, values
+
+
+def _discard(experiment_id: str) -> None:
+    """Undo `_reopen` when the new experiment could not start: no dangling 'created' rows."""
+    with session_scope() as s:
+        exp = s.get(Experiment, uuid.UUID(experiment_id))
+        row = s.scalar(select(AgentVersion).where(AgentVersion.version == exp.candidate_version))
+        row.status = "rejected"
+        s.delete(exp)
+
+
 def retest(experiment_id: str, reason: str, deps: ImproveDeps | None = None, g=None) -> dict:
     """Re-test an earlier candidate as a NEW experiment, entering the graph after `propose`.
 
@@ -349,30 +384,49 @@ def retest(experiment_id: str, reason: str, deps: ImproveDeps | None = None, g=N
     window). The config hash and version string stay the same, so the run files' `code_revision` and
     this experiment's `retest_of` record what differs. Everything after propose is unchanged:
     interleaved runs, gates, holdout, human approval."""
-    with session_scope() as s:
-        old = s.get(Experiment, uuid.UUID(experiment_id))
-        if old is None or old.status not in ("rejected", "declined"):
-            raise ValueError("only a rejected or declined experiment can be re-tested")
-        if registry.active(s).version != old.baseline_version:
-            raise ValueError(f"the active version is no longer {old.baseline_version}")
-        thread = f"improve-{uuid.uuid4()}"
-        exp = Experiment(name=f"{old.baseline_version} vs {old.candidate_version} (retest)",
-                         analysis_id=old.analysis_id, baseline_version=old.baseline_version,
-                         candidate_version=old.candidate_version, dataset_version=dataset_version(),
-                         evaluator_version=EVALUATOR_VERSION,
-                         models={r: model_id(r) for r in ("planner", "judge", "improver")}, splits=SELECTION_SPLITS,
-                         change={**old.change, "retest_of": str(old.id), "retest_reason": reason},
-                         n_runs=1, status="created", thread_id=thread)
-        s.add(exp)
-        row = s.scalar(select(AgentVersion).where(AgentVersion.version == old.candidate_version))
-        row.status = "candidate"
-        s.flush()
-        values = {"baseline_version": old.baseline_version, "candidate_version": old.candidate_version,
-                  "experiment_id": str(exp.id), "analysis_id": str(old.analysis_id), "diagnoses": [],
-                  "log": [f"retest of {str(old.id)[:8]}: {reason}"]}
+    _, thread, values = _reopen(experiment_id, {"retest_of": experiment_id, "retest_reason": reason}, "retest")
     g = g or graph()
     cfg = _cfg(thread, deps, "improvement_retest")
+    values["log"] = [f"retest of {experiment_id[:8]}: {reason}"]
     g.update_state(cfg, values, as_node="propose")  # the next node is `experiment`
+    return _result(g.invoke(None, cfg), thread)
+
+
+def rescore(experiment_id: str, reason: str, checks: list[str], deps: ImproveDeps | None = None, g=None,
+            measure=None) -> dict:
+    """Re-score an earlier experiment's stored renders under a fixed evaluator, entering after `experiment`.
+
+    For a human who fixed a CHECK the experiment exposed (retest b24e2c29: frozen_frames flagged still
+    source shots). The agent isn't re-run: the changed deterministic checks are recomputed on both
+    versions' renders and the rest is copied, so the comparison is still paired and equal-handed. Gates,
+    the holdout (run fresh, under the new evaluator) and human approval are unchanged."""
+    from improvement.experiments.rescore import RESCORABLE, rescore_run
+
+    if not checks or any(c not in RESCORABLE for c in checks):
+        raise ValueError(f"re-scorable checks are {sorted(RESCORABLE)} (deterministic only), got {checks}")
+    runs, thread, values = _reopen(experiment_id, {"rescore_of": experiment_id, "rescore_reason": reason,
+                                                   "rescored_checks": checks}, "rescore")
+    if not runs["baseline"] or not runs["candidate"]:
+        raise ValueError("that experiment has no stored runs to re-score")
+    tag, old_tag = runs["new_id"][:8], runs["old_id"][:8]
+    try:
+        bpath = rescore_run(Path(runs["baseline"]), EXPERIMENTS / f"{tag}-baseline-dev-val.json", checks, measure)
+        cpath = rescore_run(Path(runs["candidate"]), EXPERIMENTS / f"{tag}-candidate-dev-val.json", checks, measure)
+        old_confirm = EXPERIMENTS / f"{old_tag}-candidate-confirm-dev-val.json"
+        confirm = (rescore_run(old_confirm, EXPERIMENTS / f"{tag}-candidate-confirm-dev-val.json", checks, measure)
+                   if old_confirm.exists() else None)
+    except Exception:
+        _discard(runs["new_id"])
+        raise
+    with session_scope() as s:
+        exp = s.get(Experiment, uuid.UUID(runs["new_id"]))
+        exp.baseline_run, exp.candidate_run, exp.status = str(bpath), str(cpath), "running"
+    g = g or graph()
+    cfg = _cfg(thread, deps, "improvement_rescore")
+    values |= {"baseline_run": str(bpath), "candidate_run": str(cpath),
+               "confirm_run": str(confirm) if confirm else None,
+               "log": [f"rescore of {old_tag} under {EVALUATOR_VERSION} ({', '.join(checks)}): {reason}"]}
+    g.update_state(cfg, values, as_node="experiment")  # the next node is `gates`
     return _result(g.invoke(None, cfg), thread)
 
 

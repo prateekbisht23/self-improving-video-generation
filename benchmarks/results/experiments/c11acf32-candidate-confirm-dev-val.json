@@ -1,0 +1,175 @@
+{
+  "run_id": "b24e2c29-candidate-confirm-dev-val",
+  "agent_version": "editing-agent-0.3+97e3caa31076",
+  "evaluator_version": "eval-1.2",
+  "dataset_version": "bench-v1-840ca30bb4",
+  "splits": [
+    "development",
+    "validation"
+  ],
+  "judges": true,
+  "creator_isolation": true,
+  "code_revision": "3394cc4",
+  "models": {
+    "planner": "google_genai:gemini-3.5-flash-lite",
+    "vision": "google_genai:gemini-3.5-flash-lite",
+    "judge": "google_genai:gemini-3.5-flash-lite",
+    "embeddings": "google_genai:gemini-embedding-001"
+  },
+  "started": "2026-11-26T08:22:40+00:00",
+  "results": [
+    {
+      "task": "pc-02",
+      "category": "pacing_scene_selection",
+      "split": "development",
+      "session_id": "510075ad-28de-4708-8014-561421f46ba7",
+      "status": "rendered",
+      "steps": 17,
+      "log": [
+        "plan: 4 clips, ~24.3s",
+        "01 plan   select_clip: ok",
+        "02 plan   select_clip: ok",
+        "03 plan   select_clip: ok",
+        "04 plan   select_clip: ok",
+        "05 plan   add_transition: ok",
+        "06 plan   add_transition: ok",
+        "07 plan   add_transition: ok",
+        "08 plan   apply_style: ok",
+        "09 plan   generate_captions: ok",
+        "10 plan   add_title: ok",
+        "repair #1: duration 30.25s outside target 20-25s -> ['trim_clip', 'trim_clip', 'trim_clip', 'trim_clip']",
+        "11 repair trim_clip: ok",
+        "12 repair trim_clip: ok",
+        "13 repair trim_clip: ok",
+        "14 repair trim_clip: ok",
+        "repair #2: duration 17.87s outside target 20-25s -> ['trim_clip', 'trim_clip', 'trim_clip']",
+        "15 repair trim_clip: ok",
+        "16 repair trim_clip: ok",
+        "17 repair trim_clip: ok",
+        "render v17: 23.19s"
+      ],
+      "rejected": 0,
+      "repairs": 7,
+      "fixups": 0,
+      "trace_id": "cc5b4324-36e0-4ba9-911e-ab6f9a9630ba",
+      "error": null,
+      "judge_errors": 0,
+      "render_id": "88031723-765b-4165-b6bb-98fcf67b7cf0",
+      "evaluation_id": "167316e0-bf7a-4c60-965e-cafb7c8007f1",
+      "gate": true,
+      "pass_rate": 0.905,
+      "failed": [
+        "temporal.dialogue_continuity",
+        "temporal.shot_durations"
+      ],
+      "by_category": {
+        "captions": {
+          "passed": 3,
+          "total": 3,
+          "rate": 1.0
+        },
+        "instruction": {
+          "passed": 1,
+          "total": 1,
+          "rate": 1.0
+        },
+        "narrative": {
+          "passed": 1,
+          "total": 1,
+          "rate": 1.0
+        },
+        "technical": {
+          "passed": 10,
+          "total": 10,
+          "rate": 1.0
+        },
+        "temporal": {
+          "passed": 3,
+          "total": 5,
+          "rate": 0.6
+        },
+        "visual": {
+          "passed": 1,
+          "total": 1,
+          "rate": 1.0
+        }
+      },
+      "checks": {
+        "captions.accuracy": true,
+        "captions.present": null,
+        "captions.speech_coverage": true,
+        "captions.sync": true,
+        "instruction.adherence": true,
+        "narrative.structure": true,
+        "technical.aspect_ratio": true,
+        "technical.audio_present": true,
+        "technical.av_stream_alignment": true,
+        "technical.black_frames": true,
+        "technical.duration_in_range": true,
+        "technical.file_valid": true,
+        "technical.frozen_frames": true,
+        "technical.loudness": true,
+        "technical.missing_media": true,
+        "technical.resolution": true,
+        "temporal.cut_through_word": true,
+        "temporal.dead_air": true,
+        "temporal.dialogue_continuity": false,
+        "temporal.repeated_footage": true,
+        "temporal.shot_durations": false,
+        "visual.framing": true
+      },
+      "scores": {
+        "captions.accuracy": 0.938,
+        "captions.speech_coverage": 0.992,
+        "instruction.adherence": 1.0,
+        "narrative.structure": 0.75
+      },
+      "duration": 23.2,
+      "seconds": 185.9
+    }
+  ],
+  "summary": {
+    "tasks": 1,
+    "completed": 1,
+    "completion_rate": 1.0,
+    "technical_valid_rate": 1.0,
+    "mean_pass_rate": 0.905,
+    "mean_actions": 17.0,
+    "repairs_per_task": 7.0,
+    "check_pass_rates": {
+      "captions.accuracy": 1.0,
+      "captions.speech_coverage": 1.0,
+      "captions.sync": 1.0,
+      "instruction.adherence": 1.0,
+      "narrative.structure": 1.0,
+      "technical.aspect_ratio": 1.0,
+      "technical.audio_present": 1.0,
+      "technical.av_stream_alignment": 1.0,
+      "technical.black_frames": 1.0,
+      "technical.duration_in_range": 1.0,
+      "technical.file_valid": 1.0,
+      "technical.frozen_frames": 1.0,
+      "technical.loudness": 1.0,
+      "technical.missing_media": 1.0,
+      "technical.resolution": 1.0,
+      "temporal.cut_through_word": 1.0,
+      "temporal.dead_air": 1.0,
+      "temporal.dialogue_continuity": 0.0,
+      "temporal.repeated_footage": 1.0,
+      "temporal.shot_durations": 0.0,
+      "visual.framing": 1.0
+    },
+    "by_task_category": {
+      "pacing_scene_selection": 0.905
+    }
+  },
+  "finished": "2026-11-26T08:25:46+00:00",
+  "rescored_from": {
+    "path": "/Users/prateekbisht/Projects/self-improving-video-generation/benchmarks/results/experiments/b24e2c29-candidate-confirm-dev-val.json",
+    "evaluator_version": "eval-1.1",
+    "checks": [
+      "technical.frozen_frames"
+    ]
+  },
+  "langsmith_experiment": null
+}

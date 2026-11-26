@@ -4,6 +4,8 @@
     uv run python -m improvement.cli start [--max-clusters 3] # full loop; stops at the approval interrupt
     uv run python -m improvement.cli resume <thread>          # continue after an error (e.g. daily quota)
     uv run python -m improvement.cli retest <experiment-id> --reason "..."   # re-test a candidate after a code fix
+    uv run python -m improvement.cli rescore <experiment-id> --check technical.frozen_frames --reason "..."
+                                                              # re-score stored renders after a check fix
     uv run python -m improvement.cli approve <thread> --by <name> [--note ...]
     uv run python -m improvement.cli decline <thread> --by <name> [--note ...]
     uv run python -m improvement.cli status                   # versions, experiments, promotions
@@ -63,6 +65,10 @@ def main() -> None:
     rt = sub.add_parser("retest")
     rt.add_argument("experiment")
     rt.add_argument("--reason", required=True)
+    rs = sub.add_parser("rescore")
+    rs.add_argument("experiment")
+    rs.add_argument("--check", action="append", required=True)
+    rs.add_argument("--reason", required=True)
     for name in ("approve", "decline"):
         d = sub.add_parser(name)
         d.add_argument("thread")
@@ -84,6 +90,8 @@ def main() -> None:
         print(json.dumps(ig.start(a.max_clusters), indent=2, default=str))
     elif a.cmd == "retest":
         print(json.dumps(ig.retest(a.experiment, a.reason), indent=2, default=str))
+    elif a.cmd == "rescore":
+        print(json.dumps(ig.rescore(a.experiment, a.reason, a.check), indent=2, default=str))
     elif a.cmd == "resume":
         print(json.dumps(ig.resume(a.thread), indent=2, default=str))
     else:

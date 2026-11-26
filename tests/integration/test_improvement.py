@@ -243,3 +243,52 @@ def test_retest_runs_a_rejected_candidate_again_as_a_new_experiment(deps):
         assert exps[1].candidate_version == exps[0].candidate_version
     with pytest.raises(ValueError):
         ig.retest(str(exps[1].id), "not rejected", deps=d, g=g)
+
+
+def test_rescore_regates_stored_renders_after_a_check_fix(deps, monkeypatch):
+    """The candidate fixes cuts but 'regresses' frozen_frames; the check was wrong (still source shots).
+    After the check is fixed, both runs are re-scored without re-running the agent, then re-gated."""
+    import json
+
+    from evaluation.schemas import EVALUATOR_VERSION, CheckResult
+    from improvement.experiments import rescore as rescore_mod
+
+    def pair(baseline, candidate, tasks, splits, bpath, cpath):
+        for version, path in ((baseline, bpath), (candidate, cpath)):
+            cand = version != baseline
+            rows = [{"task": t.id, "split": t.split, "category": "c", "status": "rendered", "evaluation_id": f"e{t.id}",
+                     "render_id": f"r{t.id}{int(cand)}", "gate": True, "steps": 5, "repairs": 1,
+                     "pass_rate": 0.5 if cand else 0.5,
+                     "checks": {"temporal.cut_through_word": cand, "technical.frozen_frames": not cand}}
+                    for t in tasks]
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(json.dumps({"agent_version": version, "dataset_version": "d", "evaluator_version": "e",
+                                        "results": rows, "summary": {"completion_rate": 1.0,
+                                                                     "technical_valid_rate": 1.0}}))
+        return bpath, cpath
+
+    d, g = deps(), ig.build_graph(InMemorySaver())
+    d.run_pair = pair
+    first = ig.start(deps=d, g=g)
+    assert first["status"] == "rejected" and not d.assessed
+
+    seen = []
+    monkeypatch.setitem(rescore_mod.RESCORABLE, "technical.frozen_frames",
+                        lambda path, dur, tl: CheckResult(id="technical.frozen_frames", category="technical",
+                                                          kind="deterministic", passed=True, severity="minor",
+                                                          message="still source"))
+    out = ig.rescore(first["experiment_id"], "frozen_frames flagged still source shots",
+                     ["technical.frozen_frames"], deps=d, g=g,
+                     measure=lambda rid: seen.append(rid) or ("/x.mp4", 10.0, {}))
+    assert out["status"] == "awaiting_approval" and d.assessed  # the agent wasn't re-run, the holdout was
+    assert {r[-1] for r in seen} == {"0", "1"}                   # both versions' renders were re-scored
+    with session_scope() as s:
+        exps = s.scalars(select(Experiment).order_by(Experiment.created_at)).all()
+        assert [e.status for e in exps] == ["rejected", "awaiting_approval"]
+        assert exps[1].change["rescore_of"] == first["experiment_id"]
+        assert exps[1].comparison["checks"]["technical.frozen_frames"]["delta"] == 0
+        cand = json.loads(open(exps[1].candidate_run).read())
+    assert cand["evaluator_version"] == EVALUATOR_VERSION and cand["rescored_from"]["evaluator_version"] == "e"
+    assert cand["results"][0]["pass_rate"] == 1.0 and cand["results"][0]["failed"] == []
+    with pytest.raises(ValueError):
+        ig.rescore(first["experiment_id"], "again", ["temporal.cut_through_word"], deps=d, g=g)  # judge/other: no

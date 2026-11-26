@@ -21,7 +21,7 @@ def test_render_is_auto_evaluated_and_issues_are_stored(client, processed, monke
     evs = client.get(f"/edits/{sid}/evaluations").json()
     assert len(evs) == 1
     ev = evs[0]
-    assert ev["technical_gate_passed"] and ev["evaluator_version"] == "eval-1.1" and ev["judge_model"] is None
+    assert ev["technical_gate_passed"] and ev["evaluator_version"] == "eval-1.2" and ev["judge_model"] is None
     assert ev["version"] == client.get(f"/edits/{sid}").json()["versions"][-1]["version"]  # linked to version
     assert "temporal.cut_through_word" in ev["failed"]
 

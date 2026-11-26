@@ -122,9 +122,75 @@ The same round produced three more harness changes:
 
 **Re-testing after a code fix**: `improvement.cli retest <experiment> --reason "..."` creates a *new* experiment for the same candidate. It enters the graph after `propose` (`update_state(..., as_node="propose")`), so interleaved runs, gates, holdout and human approval all apply unchanged. The record keeps `retest_of` and the reason.
 
+### Retest (`b24e2c29`): the candidate was fine, a check was wrong
+The retest ran with the snapping fix (`code_revision` 3394cc4), and this time the knobs did what they promised:
+
+| | baseline | candidate |
+|---|---|---|
+| style.caption_match (target) | 0% | **100%** |
+| temporal.cut_through_word (target) | 43% | **76%** |
+| completion | 91.7% | 95.8% (pc-02 failed once, rendered on the confirmation re-run) |
+| paired pass rate | | +0.053 (CI −0.06 … +0.17), 13 wins / 4 ties / 7 losses |
+| technical.frozen_frames | 100% | **86%**: 3 tasks, so a gating regression |
+
+Rejected again, by a single check. Reading the evidence:
+- All three failures were the **same segment, 0.00–2.23 s**, in different tasks.
+- All three renders open on the same source shot (11.12 s). `freezedetect` on the *source* shows the moon is nearly still there for about 2.2 s.
+- In the baseline, the same opening passed, because word-by-word captions animate over it, so the output never looks frozen. The candidate's own target change (`captions_follow_reference`) correctly removed captions on reference tasks, which exposed the still shot.
+
+So a correct improvement tripped a check meant for **render faults**: a stalled decode, or padded frames. All 10 renders ever flagged by `frozen_frames`, across all versions, turned out to be still shots in the source.
+
+**Fixing the check (evaluator `eval-1.2`):**
+- `frozen_check` maps each output freeze back through the timeline (`clip_starts`) to its source ranges and runs `freezedetect` there.
+- A freeze counts as a fault unless the source under it is at least 80% static.
+- Pieces under 0.25 s are skipped: a freeze ending 0.06 s into the next clip is frame-boundary jitter that `freezedetect` can't judge.
+- The source is the full frame and the output a 9:16 crop, so motion outside the crop makes the source look *less* static. That errs toward reporting a fault.
+- A unit test keeps the positive control: the same freeze over *moving* source footage still fails.
+
+**Re-scoring instead of re-running** (`improvement.cli rescore <experiment> --check technical.frozen_frames --reason "..."`): the renders didn't change, only the measuring stick did. So re-running the agent would add noise and spend a quota day.
+- `rescore_run` recomputes only the named checks on the stored renders of **both** versions, and the confirmation run, then re-aggregates.
+- It copies everything else.
+- It enters the graph after `experiment`, so gates, a fresh holdout and human approval apply unchanged.
+
+Guards:
+- **Deterministic checks only.** Re-running a model judge draws a new sample; that isn't a re-score.
+- **The evaluator version must have changed.** Each file records `rescored_from`.
+- **Faithfulness first.** Re-aggregating the *stored* check values must reproduce every stored pass rate before anything is changed, the same idea as the replay sanity check in note 18. The first attempt failed on exactly this kind of detail: non-applicable checks are `None`.
+
+Result under `eval-1.2`:
+- frozen_frames 100% → 100%, so there are no regressions;
+- both targets improved;
+- the paired mean is +0.059;
+- the candidate is **eligible** and goes to the holdout.
+
+Is fixing a check after it blocked your candidate moving the goalposts? It would be if the fix were "loosen the threshold until it passes". The safeguards here:
+- the fix comes with a mechanism (static source);
+- it applies to both versions and to every past render;
+- it keeps a positive control;
+- the final word is a holdout the loop has never seen, plus a human.
+
+**Holdout (`c11acf32`), six tasks never seen by the loop:**
+
+| | baseline | candidate |
+|---|---|---|
+| paired pass rate | | −0.013 (CI −0.065 … +0.027), 3 wins / 1 tie / 2 losses |
+| style.caption_match (target) | 0% | 100% (n=1: only one holdout task has a reference) |
+| temporal.cut_through_word (target) | 83% | 83% |
+| temporal.shot_durations | 83% | 50% |
+| repairs per task | 0.5 | 2.67 |
+
+The development/validation gains didn't show up as a measurable holdout improvement:
+- the caption target has a single applicable task;
+- the holdout baseline already cuts cleanly (83%), so there is little room to gain.
+
+The cost *did* repeat: shot_durations dropped on dev/val (−10 points) and again on the holdout, and the candidate needs more repairs in both. Two independent samples pointing the same way is the strongest signal in this experiment: word snapping still makes shots longer and edits harder to fit.
+
+That is the point of a holdout. The gates said "eligible"; the holdout says "the benefit isn't established and a cost is". The experiment is `awaiting_approval`, and the decision is a human's.
+
 ## Try this
 1. `uv run python -m improvement.cli status`: versions, experiments, promotions.
 2. Read the latest `benchmarks/results/experiments/*-report.md`. Would you approve it? What evidence is missing?
 3. Write a candidate by hand: register `AgentConfig(policy=AgentPolicy(snap_cuts="word"))` with `registry.register(...)` and run `benchmarks.runner --agent-version <it> --split development`.
 4. Use round 2 as an A/A test: for the 20 tasks without a reference, count per-check flips between `9f1e5c7f-baseline-dev-val.json` and `9f1e5c7f-candidate-dev-val.json`. That's the noise floor for one run per version. Which gate thresholds does it violate?
 5. Change `MIN_TARGET_GAIN` to 0.05 and recompute the gates on the stored comparison. How many more candidates would pass, and how many of those would be noise?
+6. Find a still shot in a source with `ffmpeg -ss <t> -t 5 -i source.mp4 -vf freezedetect=n=-60dB:d=0.5 -an -f null -`. Cut it into a timeline without captions and evaluate under `eval-1.2`. Then make a real fault (`tpad=stop_mode=clone:stop_duration=3` on moving footage). Does the check tell them apart?
